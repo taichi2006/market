@@ -12,25 +12,17 @@
         <class>com.mycompany.quanlysieuthi.employee.Employee</class>
 
         <properties>
-            <!-- Connection Provider: HikariCP -->
+            <!-- Provider -->
             <property name="hibernate.connection.provider_class"
                       value="org.hibernate.hikaricp.internal.HikariCPConnectionProvider" />
 
-            <!-- JDBC Connection Settings (Jakarta EE Standard) -->
-            <property name="jakarta.persistence.jdbc.driver" value="com.mysql.cj.jdbc.Driver" />
-            <property name="jakarta.persistence.jdbc.url"
-                      value="jdbc:mysql://localhost:3306/quanlysieuthi?useSSL=false&amp;serverTimezone=UTC&amp;allowPublicKeyRetrieval=true&amp;characterEncoding=UTF-8" />
-            <property name="jakarta.persistence.jdbc.user" value="root" />
-            <property name="jakarta.persistence.jdbc.password" value="123456" />
+            <!-- Driver -->
+            <property name="jakarta.persistence.jdbc.driver"
+                      value="org.postgresql.Driver" />
 
-            <!-- HikariCP Connection Pool Settings -->
-            <property name="hibernate.hikari.maximumPoolSize" value="10" />
-            <property name="hibernate.hikari.minimumIdle" value="5" />
-            <property name="hibernate.hikari.idleTimeout" value="30000" />
-            <property name="hibernate.hikari.connectionTimeout" value="20000" />
-
-            <!-- Hibernate Settings -->
-            <property name="hibernate.dialect" value="org.hibernate.dialect.MySQLDialect" />
+            <!-- Hibernate -->
+            <property name="hibernate.dialect"
+                      value="org.hibernate.dialect.PostgreSQLDialect" />
             <property name="hibernate.show_sql" value="true" />
             <property name="hibernate.format_sql" value="true" />
             <property name="hibernate.hbm2ddl.auto" value="none" />

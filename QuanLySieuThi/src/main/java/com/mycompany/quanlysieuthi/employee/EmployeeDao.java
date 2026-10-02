@@ -3,7 +3,6 @@ package com.mycompany.quanlysieuthi.employee;
 import com.mycompany.quanlysieuthi.config.JpaUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityTransaction;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;

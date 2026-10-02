@@ -1,0 +1,12 @@
+# Bỏ qua thư mục cấu hình của IDE
+.idea/
+*.iml
+*.xml
+
+# Bỏ qua toàn bộ thư mục build và file biên dịch
+**/target/
+*.class
+*.jar
+
+# Bỏ qua mọi file bảo mật môi trường
+**/.env
