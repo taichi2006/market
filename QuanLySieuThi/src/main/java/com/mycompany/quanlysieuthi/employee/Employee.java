@@ -1,77 +1,68 @@
 package com.mycompany.quanlysieuthi.employee;
 
-import com.mycompany.quanlysieuthi.position.Position;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.io.Serializable;
 import java.util.Objects;
 
 /**
- * JPA Entity mapping table NHANVIEN in MySQL.
+ * JPA Entity mapping table employee in PostgreSQL.
  */
 @Entity
-@Table(name = "NHANVIEN")
+@Table(name = "employee")
 public class Employee implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     @Id
-    @Column(name = "maNhanVien", length = 36, nullable = false)
-    private String id;
+    @Column(name = "employee_id", length = 36, nullable = false)
+    private String employeeId;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "maChucVu", nullable = false)
-    private Position position;
-
-    @Column(name = "hoTen", length = 100, nullable = false)
+    @Column(name = "full_name", length = 100, nullable = false)
     private String fullName;
 
-    @Column(name = "tenDangNhap", length = 255, nullable = false, unique = true)
+    @Column(name = "username", length = 255, nullable = false, unique = true)
     private String username;
 
-    @Column(name = "matKhau", length = 255, nullable = false)
+    @Column(name = "password", length = 255, nullable = false)
     private String password;
 
-    @Column(name = "soDienThoai", length = 15, nullable = false, unique = true)
-    private String phone;
+    @Column(name = "phone_number", length = 15, nullable = false, unique = true)
+    private String phoneNumber;
 
-    @Column(name = "trangThai")
+    @Column(name = "position", length = 50, nullable = false)
+    private String position;
+
+    @Column(name = "status")
     private Boolean status;
+
+    @Column(name = "refresh_token", columnDefinition = "TEXT")
+    private String refreshToken;
 
     public Employee() {
     }
 
-    public Employee(String id, Position position, String fullName, String username,
-                    String password, String phone, Boolean status) {
-        this.id = id;
-        this.position = position;
+    public Employee(String employeeId, String fullName, String username, String password,
+                    String phoneNumber, String position, Boolean status, String refreshToken) {
+        this.employeeId = employeeId;
         this.fullName = fullName;
         this.username = username;
         this.password = password;
-        this.phone = phone;
-        this.status = status;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public Position getPosition() {
-        return position;
-    }
-
-    public void setPosition(Position position) {
+        this.phoneNumber = phoneNumber;
         this.position = position;
+        this.status = status;
+        this.refreshToken = refreshToken;
+    }
+
+    public String getEmployeeId() {
+        return employeeId;
+    }
+
+    public void setEmployeeId(String employeeId) {
+        this.employeeId = employeeId;
     }
 
     public String getFullName() {
@@ -98,12 +89,20 @@ public class Employee implements Serializable {
         this.password = password;
     }
 
-    public String getPhone() {
-        return phone;
+    public String getPhoneNumber() {
+        return phoneNumber;
     }
 
-    public void setPhone(String phone) {
-        this.phone = phone;
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public String getPosition() {
+        return position;
+    }
+
+    public void setPosition(String position) {
+        this.position = position;
     }
 
     public Boolean getStatus() {
@@ -114,26 +113,35 @@ public class Employee implements Serializable {
         this.status = status;
     }
 
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Employee employee = (Employee) o;
-        return Objects.equals(id, employee.id);
+        return Objects.equals(employeeId, employee.employeeId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return Objects.hash(employeeId);
     }
 
     @Override
     public String toString() {
         return "Employee{" +
-                "id='" + id + '\'' +
+                "employeeId='" + employeeId + '\'' +
                 ", fullName='" + fullName + '\'' +
                 ", username='" + username + '\'' +
-                ", phone='" + phone + '\'' +
+                ", phoneNumber='" + phoneNumber + '\'' +
+                ", position='" + position + '\'' +
                 ", status=" + status +
                 '}';
     }

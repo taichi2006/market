@@ -1,172 +1,90 @@
 package com.mycompany.quanlysieuthi.employee;
 
-import com.mycompany.quanlysieuthi.position.Position;
-import com.mycompany.quanlysieuthi.position.PositionDao;
+import com.mycompany.quanlysieuthi.util.ConflictException;
+import com.mycompany.quanlysieuthi.util.PasswordUtil;
 
-import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
- * Service handling business logic and bidirectional mapping for Employee.
+ * Service handling business logic for Employee creation / registration.
  */
 public class EmployeeService {
 
     private final EmployeeDao employeeDao;
-    private final PositionDao positionDao;
 
     public EmployeeService() {
         this.employeeDao = new EmployeeDao();
-        this.positionDao = new PositionDao();
     }
 
-    public EmployeeService(EmployeeDao employeeDao, PositionDao positionDao) {
+    public EmployeeService(EmployeeDao employeeDao) {
         this.employeeDao = employeeDao;
-        this.positionDao = positionDao;
     }
 
-    public List<EmployeeResponse> getAllEmployees() {
-        return employeeDao.findAll()
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
-    }
-
-    public EmployeeResponse getEmployeeById(String id) {
-        if (id == null || id.trim().isEmpty()) {
-            return null;
-        }
-        return employeeDao.findById(id.trim())
-                .map(this::toResponse)
-                .orElse(null);
-    }
-
+    /**
+     * Create/register a new employee account.
+     */
     public EmployeeResponse createEmployee(EmployeeRequest request) {
         if (request == null) {
-            throw new IllegalArgumentException("Employee request payload cannot be null");
-        }
-        if (request.getPositionId() == null || request.getPositionId().trim().isEmpty()) {
-            throw new IllegalArgumentException("positionId is required");
+            throw new IllegalArgumentException("Dữ liệu nhân viên không được để trống");
         }
         if (request.getFullName() == null || request.getFullName().trim().isEmpty()) {
-            throw new IllegalArgumentException("fullName is required");
+            throw new IllegalArgumentException("Họ và tên không được để trống");
         }
         if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
-            throw new IllegalArgumentException("username is required");
+            throw new IllegalArgumentException("Tên đăng nhập không được để trống");
         }
         if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
-            throw new IllegalArgumentException("password is required");
+            throw new IllegalArgumentException("Mật khẩu không được để trống");
         }
-        if (request.getPhone() == null || request.getPhone().trim().isEmpty()) {
-            throw new IllegalArgumentException("phone is required");
+        if (request.getPhoneNumber() == null || request.getPhoneNumber().trim().isEmpty()) {
+            throw new IllegalArgumentException("Số điện thoại không được để trống");
         }
-
-        Position position = positionDao.findById(request.getPositionId().trim())
-                .orElseThrow(() -> new IllegalArgumentException("Position not found with ID: " + request.getPositionId()));
-
-        Employee employee = toEntity(request, position);
-        Employee savedEmployee = employeeDao.save(employee);
-        return toResponse(savedEmployee);
-    }
-
-    public EmployeeResponse updateEmployee(String id, EmployeeRequest request) {
-        if (id == null || id.trim().isEmpty()) {
-            throw new IllegalArgumentException("Employee ID is required");
-        }
-        if (request == null) {
-            throw new IllegalArgumentException("Update payload cannot be null");
+        if (request.getPosition() == null || request.getPosition().trim().isEmpty()) {
+            throw new IllegalArgumentException("Chức vụ không được để trống");
         }
 
-        Employee employee = employeeDao.findById(id.trim())
-                .orElseThrow(() -> new IllegalArgumentException("Employee not found with ID: " + id));
+        String username = request.getUsername().trim();
+        String phoneNumber = request.getPhoneNumber().trim();
 
-        if (request.getPositionId() != null && !request.getPositionId().trim().isEmpty()) {
-            Position position = positionDao.findById(request.getPositionId().trim())
-                    .orElseThrow(() -> new IllegalArgumentException("Position not found with ID: " + request.getPositionId()));
-            employee.setPosition(position);
-        }
-        if (request.getFullName() != null && !request.getFullName().trim().isEmpty()) {
-            employee.setFullName(request.getFullName().trim());
-        }
-        if (request.getUsername() != null && !request.getUsername().trim().isEmpty()) {
-            employee.setUsername(request.getUsername().trim());
-        }
-        if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
-            employee.setPassword(request.getPassword());
-        }
-        if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
-            employee.setPhone(request.getPhone().trim());
-        }
-        if (request.getStatus() != null) {
-            employee.setStatus(request.getStatus());
+        // 409 Conflict: username hoặc phone_number đã tồn tại
+        if (employeeDao.findByUsername(username).isPresent()) {
+            throw new ConflictException("username hoặc phone_number đã tồn tại.");
         }
 
-        Employee saved = employeeDao.save(employee);
-        return toResponse(saved);
-    }
-
-    public EmployeeResponse deactivateEmployee(String id) {
-        if (id == null || id.trim().isEmpty()) {
-            throw new IllegalArgumentException("Employee ID is required");
+        if (employeeDao.findByPhoneNumber(phoneNumber).isPresent()) {
+            throw new ConflictException("username hoặc phone_number đã tồn tại.");
         }
 
-        Employee employee = employeeDao.findById(id.trim())
-                .orElseThrow(() -> new IllegalArgumentException("Employee not found with ID: " + id));
+        // Tự sinh UUID cho employee_id
+        String employeeId = UUID.randomUUID().toString();
 
-        employee.setStatus(false);
-        Employee saved = employeeDao.save(employee);
-        return toResponse(saved);
-    }
+        // Mật khẩu được băm bằng BCrypt trước khi INSERT
+        String hashedPassword = PasswordUtil.hash(request.getPassword());
 
-    public Employee toEntity(EmployeeRequest request, Position position) {
-        if (request == null) {
-            return null;
-        }
+        // Mặc định status = true
+        Boolean defaultStatus = Boolean.TRUE;
 
-        String employeeId = (request.getId() != null && !request.getId().trim().isEmpty())
-                ? request.getId().trim()
-                : UUID.randomUUID().toString();
-
-        Boolean status = (request.getStatus() != null) ? request.getStatus() : Boolean.TRUE;
-
-        return new Employee(
+        Employee employee = new Employee(
                 employeeId,
-                position,
                 request.getFullName().trim(),
-                request.getUsername().trim(),
-                request.getPassword(),
-                request.getPhone().trim(),
-                status
+                username,
+                hashedPassword,
+                phoneNumber,
+                request.getPosition().trim(),
+                defaultStatus,
+                null // initial refresh_token is null
         );
-    }
 
-    public EmployeeResponse toResponse(Employee entity) {
-        if (entity == null) {
-            return null;
-        }
-        String positionId = null;
-        String positionName = null;
-        if (entity.getPosition() != null) {
-            positionId = entity.getPosition().getId();
-            try {
-                positionName = entity.getPosition().getName();
-            } catch (Exception e) {
-                // Safe fallback in case proxy is detached
-                Position pos = positionDao.findById(positionId).orElse(null);
-                if (pos != null) {
-                    positionName = pos.getName();
-                }
-            }
-        }
+        Employee saved = employeeDao.save(employee);
 
+        // Output tuyệt đối không trả về trường password
         return new EmployeeResponse(
-                entity.getId(),
-                positionId,
-                positionName,
-                entity.getFullName(),
-                entity.getUsername(),
-                entity.getPhone(),
-                entity.getStatus()
+                saved.getEmployeeId(),
+                saved.getFullName(),
+                saved.getUsername(),
+                saved.getPhoneNumber(),
+                saved.getPosition(),
+                saved.getStatus()
         );
     }
 }

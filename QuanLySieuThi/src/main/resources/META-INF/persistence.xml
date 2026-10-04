@@ -8,7 +8,6 @@
         <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
 
         <!-- Managed Entity Classes -->
-        <class>com.mycompany.quanlysieuthi.position.Position</class>
         <class>com.mycompany.quanlysieuthi.employee.Employee</class>
 
         <properties>

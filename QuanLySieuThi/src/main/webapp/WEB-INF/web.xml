@@ -3,6 +3,36 @@
    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
    xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
    version="6.0">
+
+    <filter>
+        <filter-name>CorsFilter</filter-name>
+        <filter-class>com.mycompany.quanlysieuthi.config.CorsFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>CorsFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <filter>
+        <filter-name>AuthFilter</filter-name>
+        <filter-class>com.mycompany.quanlysieuthi.security.AuthFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>AuthFilter</filter-name>
+        <url-pattern>/api/employee</url-pattern>
+        <url-pattern>/api/employee/*</url-pattern>
+    </filter-mapping>
+
+    <filter>
+        <filter-name>OwnerRoleFilter</filter-name>
+        <filter-class>com.mycompany.quanlysieuthi.security.OwnerRoleFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>OwnerRoleFilter</filter-name>
+        <url-pattern>/api/employee</url-pattern>
+        <url-pattern>/api/employee/*</url-pattern>
+    </filter-mapping>
+
     <session-config>
         <session-timeout>
             30

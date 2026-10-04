@@ -10,7 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Utility class for sending standardized JSON HTTP responses.
+ * Utility class for sending standardized JSON HTTP responses matching the API specification.
  */
 public class ResponseUtil {
 
@@ -22,14 +22,31 @@ public class ResponseUtil {
     private ResponseUtil() {
     }
 
-    public static void sendJson(HttpServletResponse response, int statusCode, Object data) throws IOException {
+    public static void sendSuccess(HttpServletResponse response, int statusCode, String message, Object data) throws IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         response.setStatus(statusCode);
 
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("status", statusCode);
+        if (message != null) {
+            payload.put("message", message);
+        }
+        if (data != null) {
+            payload.put("data", data);
+        }
+
         PrintWriter writer = response.getWriter();
-        writer.write(GSON.toJson(data));
+        writer.write(GSON.toJson(payload));
         writer.flush();
+    }
+
+    public static void sendSuccess(HttpServletResponse response, int statusCode, Object data) throws IOException {
+        sendSuccess(response, statusCode, null, data);
+    }
+
+    public static void sendSuccess(HttpServletResponse response, int statusCode, String message) throws IOException {
+        sendSuccess(response, statusCode, message, null);
     }
 
     public static void sendError(HttpServletResponse response, int statusCode, String message) throws IOException {
@@ -38,12 +55,15 @@ public class ResponseUtil {
         response.setStatus(statusCode);
 
         Map<String, Object> errorPayload = new LinkedHashMap<>();
-        errorPayload.put("success", false);
-        errorPayload.put("statusCode", statusCode);
+        errorPayload.put("status", statusCode);
         errorPayload.put("message", message);
 
         PrintWriter writer = response.getWriter();
         writer.write(GSON.toJson(errorPayload));
         writer.flush();
+    }
+
+    public static void sendJson(HttpServletResponse response, int statusCode, Object data) throws IOException {
+        sendSuccess(response, statusCode, data);
     }
 }

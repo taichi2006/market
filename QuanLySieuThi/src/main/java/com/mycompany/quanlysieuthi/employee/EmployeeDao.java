@@ -3,7 +3,7 @@ package com.mycompany.quanlysieuthi.employee;
 import com.mycompany.quanlysieuthi.config.JpaUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityTransaction;
-import java.util.Collections;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -12,31 +12,63 @@ import java.util.Optional;
  */
 public class EmployeeDao {
 
-    public List<Employee> findAll() {
+    public Optional<Employee> findById(String employeeId) {
+        if (employeeId == null || employeeId.trim().isEmpty()) {
+            return Optional.empty();
+        }
         EntityManager em = JpaUtil.getEntityManager();
         try {
-            return em.createQuery(
-                    "SELECT e FROM Employee e LEFT JOIN FETCH e.position ORDER BY e.id ASC",
-                    Employee.class
-            ).getResultList();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Collections.emptyList();
+            Employee employee = em.find(Employee.class, employeeId.trim());
+            return Optional.ofNullable(employee);
         } finally {
             em.close();
         }
     }
 
-    public Optional<Employee> findById(String id) {
-        if (id == null) {
+    public Optional<Employee> findByUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
             return Optional.empty();
         }
         EntityManager em = JpaUtil.getEntityManager();
         try {
             List<Employee> list = em.createQuery(
-                    "SELECT e FROM Employee e LEFT JOIN FETCH e.position WHERE e.id = :id",
+                    "SELECT e FROM Employee e WHERE e.username = :username",
                     Employee.class
-            ).setParameter("id", id).getResultList();
+            ).setParameter("username", username.trim()).getResultList();
+
+            return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+        } finally {
+            em.close();
+        }
+    }
+
+    public Optional<Employee> findByPhoneNumber(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.trim().isEmpty()) {
+            return Optional.empty();
+        }
+        EntityManager em = JpaUtil.getEntityManager();
+        try {
+            List<Employee> list = em.createQuery(
+                    "SELECT e FROM Employee e WHERE e.phoneNumber = :phoneNumber",
+                    Employee.class
+            ).setParameter("phoneNumber", phoneNumber.trim()).getResultList();
+
+            return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+        } finally {
+            em.close();
+        }
+    }
+
+    public Optional<Employee> findByRefreshToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.trim().isEmpty()) {
+            return Optional.empty();
+        }
+        EntityManager em = JpaUtil.getEntityManager();
+        try {
+            List<Employee> list = em.createQuery(
+                    "SELECT e FROM Employee e WHERE e.refreshToken = :refreshToken",
+                    Employee.class
+            ).setParameter("refreshToken", refreshToken.trim()).getResultList();
 
             return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
         } finally {
@@ -50,10 +82,6 @@ public class EmployeeDao {
         try {
             tx.begin();
             Employee result = em.merge(employee);
-            if (result.getPosition() != null) {
-                // Eagerly initialize proxy before closing EntityManager
-                result.getPosition().getName();
-            }
             tx.commit();
             return result;
         } catch (Exception e) {
@@ -66,24 +94,22 @@ public class EmployeeDao {
         }
     }
 
-    public boolean deleteById(String id) {
+    public void updateRefreshToken(String employeeId, String refreshToken) {
         EntityManager em = JpaUtil.getEntityManager();
         EntityTransaction tx = em.getTransaction();
         try {
             tx.begin();
-            Employee employee = em.find(Employee.class, id);
+            Employee employee = em.find(Employee.class, employeeId);
             if (employee != null) {
-                em.remove(employee);
-                tx.commit();
-                return true;
+                employee.setRefreshToken(refreshToken);
+                em.merge(employee);
             }
             tx.commit();
-            return false;
         } catch (Exception e) {
             if (tx.isActive()) {
                 tx.rollback();
             }
-            throw new RuntimeException("Failed to delete Employee: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to update refresh token: " + e.getMessage(), e);
         } finally {
             em.close();
         }
