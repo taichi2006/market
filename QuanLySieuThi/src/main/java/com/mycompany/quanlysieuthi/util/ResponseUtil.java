@@ -23,6 +23,10 @@ public class ResponseUtil {
     }
 
     public static void sendSuccess(HttpServletResponse response, int statusCode, String message, Object data) throws IOException {
+        sendSuccess(response, statusCode, message, data, null);
+    }
+
+    public static void sendSuccess(HttpServletResponse response, int statusCode, String message, Object data, Object meta) throws IOException {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         response.setStatus(statusCode);
@@ -34,6 +38,9 @@ public class ResponseUtil {
         }
         if (data != null) {
             payload.put("data", data);
+        }
+        if (meta != null) {
+            payload.put("meta", meta);
         }
 
         PrintWriter writer = response.getWriter();

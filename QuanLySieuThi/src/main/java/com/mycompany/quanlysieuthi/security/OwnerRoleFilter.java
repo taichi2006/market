@@ -44,13 +44,58 @@ public class OwnerRoleFilter implements Filter {
         }
 
         String position = claims.get("position", String.class);
-        if (position == null || !REQUIRED_ROLE.equalsIgnoreCase(position.trim())) {
-            ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
-                    "Người gọi không phải là STORE_OWNER.");
+        boolean isOwner = position != null && REQUIRED_ROLE.equalsIgnoreCase(position.trim());
+
+        if (isOwner) {
+            filterChain.doFilter(servletRequest, servletResponse);
             return;
         }
 
-        filterChain.doFilter(servletRequest, servletResponse);
+        // Allow an employee to view their own profile (GET /api/employee/:id)
+        if ("GET".equalsIgnoreCase(request.getMethod())) {
+            String targetId = extractTargetId(request);
+            String currentEmployeeId = claims.get("employeeId", String.class);
+            if (targetId != null && currentEmployeeId != null && targetId.equalsIgnoreCase(currentEmployeeId.trim())) {
+                filterChain.doFilter(servletRequest, servletResponse);
+                return;
+            }
+            if (targetId != null) {
+                ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
+                        "Người gọi không phải là STORE_OWNER (và không phải chính chủ sở hữu tài khoản).");
+                return;
+            }
+        }
+
+        ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
+                "Người gọi không phải là STORE_OWNER.");
+    }
+
+    public static String extractTargetId(HttpServletRequest request) {
+        String pathInfo = request.getPathInfo();
+        if (pathInfo != null && !pathInfo.trim().isEmpty() && !pathInfo.trim().equals("/")) {
+            String clean = pathInfo.trim();
+            if (clean.startsWith("/")) {
+                clean = clean.substring(1);
+            }
+            if (clean.endsWith("/")) {
+                clean = clean.substring(0, clean.length() - 1);
+            }
+            if (!clean.isEmpty()) {
+                return clean;
+            }
+        }
+
+        String uri = request.getRequestURI();
+        if (uri != null) {
+            String[] parts = uri.split("/");
+            if (parts.length > 0) {
+                String last = parts[parts.length - 1];
+                if (!last.isEmpty() && !last.equalsIgnoreCase("employee") && !last.equalsIgnoreCase("employees")) {
+                    return last;
+                }
+            }
+        }
+        return null;
     }
 
     @Override

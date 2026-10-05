@@ -21,6 +21,8 @@
         <filter-name>AuthFilter</filter-name>
         <url-pattern>/api/employee</url-pattern>
         <url-pattern>/api/employee/*</url-pattern>
+        <url-pattern>/api/employees</url-pattern>
+        <url-pattern>/api/employees/*</url-pattern>
     </filter-mapping>
 
     <filter>
@@ -31,6 +33,8 @@
         <filter-name>OwnerRoleFilter</filter-name>
         <url-pattern>/api/employee</url-pattern>
         <url-pattern>/api/employee/*</url-pattern>
+        <url-pattern>/api/employees</url-pattern>
+        <url-pattern>/api/employees/*</url-pattern>
     </filter-mapping>
 
     <session-config>
