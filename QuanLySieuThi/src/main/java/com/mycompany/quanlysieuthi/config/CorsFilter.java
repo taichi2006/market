@@ -13,7 +13,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
- * Filter to enable Cross-Origin Resource Sharing (CORS) for all endpoints.
+ * Filter to enable Cross-Origin Resource Sharing (CORS) with credential support.
  */
 @WebFilter(filterName = "CorsFilter", urlPatterns = {"/*"})
 public class CorsFilter implements Filter {
@@ -28,7 +28,14 @@ public class CorsFilter implements Filter {
         HttpServletRequest request = (HttpServletRequest) servletRequest;
         HttpServletResponse response = (HttpServletResponse) servletResponse;
 
-        response.setHeader("Access-Control-Allow-Origin", "*");
+        String origin = request.getHeader("Origin");
+        if (origin != null && !origin.trim().isEmpty()) {
+            response.setHeader("Access-Control-Allow-Origin", origin);
+            response.setHeader("Access-Control-Allow-Credentials", "true");
+        } else {
+            response.setHeader("Access-Control-Allow-Origin", "*");
+        }
+
         response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
         response.setHeader("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With");
         response.setHeader("Access-Control-Max-Age", "3600");
