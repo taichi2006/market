@@ -14,6 +14,8 @@
         <class>com.mycompany.quanlysieuthi.purchasereceipt.entity.Voucher</class>
         <class>com.mycompany.quanlysieuthi.purchasereceipt.entity.PurchaseReceipt</class>
         <class>com.mycompany.quanlysieuthi.purchasereceipt.entity.PurchaseReceiptDetail</class>
+        <class>com.mycompany.quanlysieuthi.report.entity.InventoryReport</class>
+        <class>com.mycompany.quanlysieuthi.report.entity.InventoryReportDetail</class>
 
         <properties>
             <!-- Provider -->

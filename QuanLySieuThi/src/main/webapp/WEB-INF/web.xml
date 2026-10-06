@@ -23,6 +23,8 @@
         <url-pattern>/api/employee/*</url-pattern>
         <url-pattern>/api/purchase-receipt</url-pattern>
         <url-pattern>/api/purchase-receipt/*</url-pattern>
+        <url-pattern>/api/report</url-pattern>
+        <url-pattern>/api/report/*</url-pattern>
     </filter-mapping>
 
     <filter>
@@ -43,6 +45,8 @@
         <filter-name>InventoryRoleFilter</filter-name>
         <url-pattern>/api/purchase-receipt</url-pattern>
         <url-pattern>/api/purchase-receipt/*</url-pattern>
+        <url-pattern>/api/report</url-pattern>
+        <url-pattern>/api/report/*</url-pattern>
     </filter-mapping>
 
     <session-config>
