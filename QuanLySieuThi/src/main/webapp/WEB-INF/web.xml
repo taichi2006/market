@@ -21,6 +21,8 @@
         <filter-name>AuthFilter</filter-name>
         <url-pattern>/api/employee</url-pattern>
         <url-pattern>/api/employee/*</url-pattern>
+        <url-pattern>/api/purchase-receipt</url-pattern>
+        <url-pattern>/api/purchase-receipt/*</url-pattern>
     </filter-mapping>
 
     <filter>
@@ -31,6 +33,16 @@
         <filter-name>OwnerRoleFilter</filter-name>
         <url-pattern>/api/employee</url-pattern>
         <url-pattern>/api/employee/*</url-pattern>
+    </filter-mapping>
+
+    <filter>
+        <filter-name>InventoryRoleFilter</filter-name>
+        <filter-class>com.mycompany.quanlysieuthi.security.InventoryRoleFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>InventoryRoleFilter</filter-name>
+        <url-pattern>/api/purchase-receipt</url-pattern>
+        <url-pattern>/api/purchase-receipt/*</url-pattern>
     </filter-mapping>
 
     <session-config>
