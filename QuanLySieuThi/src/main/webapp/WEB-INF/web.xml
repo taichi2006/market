@@ -23,6 +23,8 @@
         <url-pattern>/api/employee/*</url-pattern>
         <url-pattern>/api/employees</url-pattern>
         <url-pattern>/api/employees/*</url-pattern>
+        <url-pattern>/api/customer</url-pattern>
+        <url-pattern>/api/customer/*</url-pattern>
     </filter-mapping>
 
     <filter>
@@ -35,6 +37,16 @@
         <url-pattern>/api/employee/*</url-pattern>
         <url-pattern>/api/employees</url-pattern>
         <url-pattern>/api/employees/*</url-pattern>
+    </filter-mapping>
+
+    <filter>
+        <filter-name>StaffRoleFilter</filter-name>
+        <filter-class>com.mycompany.quanlysieuthi.customer.StaffRoleFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>StaffRoleFilter</filter-name>
+        <url-pattern>/api/customer</url-pattern>
+        <url-pattern>/api/customer/*</url-pattern>
     </filter-mapping>
 
     <session-config>

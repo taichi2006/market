@@ -9,6 +9,8 @@
 
         <!-- Managed Entity Classes -->
         <class>com.mycompany.quanlysieuthi.employee.Employee</class>
+        <class>com.mycompany.quanlysieuthi.customer.Customer</class>
+        <class>com.mycompany.quanlysieuthi.customer.Invoice</class>
 
         <properties>
             <!-- Provider -->

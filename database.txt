@@ -1,0 +1,1306 @@
+-- =========================================================
+-- SUPERMARKET MANAGEMENT
+-- PostgreSQL / Neon
+-- Based strictly on the provided ERD
+-- =========================================================
+
+
+-- =========================================================
+-- 0. DROP EVERYTHING IN PUBLIC SCHEMA
+-- =========================================================
+
+DROP SCHEMA public CASCADE;
+
+CREATE SCHEMA public;
+
+
+-- =========================================================
+-- 1. CUSTOMER
+-- =========================================================
+
+CREATE TABLE CUSTOMER (
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    loyalty_points INTEGER,
+
+    customer_id VARCHAR(36) PRIMARY KEY,
+
+    full_name VARCHAR(100) NOT NULL,
+
+    phone_number VARCHAR(15) UNIQUE,
+
+    email VARCHAR(150)
+);
+
+
+-- =========================================================
+-- 2. REVIEW
+-- =========================================================
+
+CREATE TABLE REVIEW (
+    review_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    review_id VARCHAR(36) PRIMARY KEY,
+
+    customer_id VARCHAR(36),
+
+    rating INTEGER NOT NULL
+        CHECK (rating >= 1 AND rating <= 5),
+
+    content TEXT,
+
+    CONSTRAINT FK_REVIEW_CUSTOMER
+        FOREIGN KEY (customer_id)
+        REFERENCES CUSTOMER(customer_id)
+);
+
+
+-- =========================================================
+-- 3. EMPLOYEE
+-- =========================================================
+
+CREATE TABLE EMPLOYEE (
+    position VARCHAR(30)
+        DEFAULT 'CASHIER'
+        CHECK (
+            position IN (
+                'STORE_OWNER',
+                'CASHIER',
+                'INVENTORY_MANAGER'
+            )
+        ),
+
+    employee_id VARCHAR(36) PRIMARY KEY,
+
+    full_name VARCHAR(100) NOT NULL,
+
+    username VARCHAR(50) UNIQUE NOT NULL,
+
+    password VARCHAR(255) NOT NULL,
+
+    phone_number VARCHAR(15) UNIQUE NOT NULL,
+
+    status BOOLEAN DEFAULT TRUE
+);
+
+
+-- =========================================================
+-- 4. PRODUCT CATEGORY
+-- =========================================================
+
+CREATE TABLE PRODUCT_CATEGORY (
+    category_id VARCHAR(36) PRIMARY KEY,
+
+    category_name VARCHAR(100) NOT NULL
+);
+
+
+-- =========================================================
+-- 5. PRODUCT
+-- =========================================================
+
+CREATE TABLE PRODUCT (
+    product_status VARCHAR(30)
+        DEFAULT 'ON_SALE'
+        CHECK (
+            product_status IN (
+                'ON_SALE',
+                'DISCONTINUED'
+            )
+        ),
+
+    stock_quantity INTEGER NOT NULL,
+
+    expiration_date TIMESTAMP NOT NULL,
+
+    product_id VARCHAR(36) PRIMARY KEY,
+
+    category_id VARCHAR(36),
+
+    product_name VARCHAR(100) NOT NULL,
+
+    CONSTRAINT FK_PRODUCT_CATEGORY
+        FOREIGN KEY (category_id)
+        REFERENCES PRODUCT_CATEGORY(category_id)
+);
+
+
+-- =========================================================
+-- 6. INVOICE
+-- =========================================================
+
+CREATE TABLE INVOICE (
+    created_at TIMESTAMP NOT NULL,
+
+    status VARCHAR(30) NOT NULL
+        CHECK (
+            status IN (
+                'PENDING',
+                'PAID',
+                'CANCELLED'
+            )
+        ),
+
+    invoice_id VARCHAR(36) PRIMARY KEY,
+
+    customer_id VARCHAR(36),
+
+    employee_id VARCHAR(36),
+
+    original_total DECIMAL(12,2) NOT NULL,
+
+    discount_amount DECIMAL(12,2),
+
+    CONSTRAINT FK_INVOICE_CUSTOMER
+        FOREIGN KEY (customer_id)
+        REFERENCES CUSTOMER(customer_id),
+
+    CONSTRAINT FK_INVOICE_EMPLOYEE
+        FOREIGN KEY (employee_id)
+        REFERENCES EMPLOYEE(employee_id)
+);
+
+
+-- =========================================================
+-- 7. INVOICE DETAIL
+-- =========================================================
+
+CREATE TABLE INVOICE_DETAIL (
+    quantity INTEGER NOT NULL,
+
+    invoice_detail_id VARCHAR(36) PRIMARY KEY,
+
+    invoice_id VARCHAR(36),
+
+    product_id VARCHAR(36),
+
+    unit_price DECIMAL(12,2) NOT NULL,
+
+    subtotal DECIMAL(12,2) NOT NULL,
+
+    CONSTRAINT FK_INVOICE_DETAIL_INVOICE
+        FOREIGN KEY (invoice_id)
+        REFERENCES INVOICE(invoice_id),
+
+    CONSTRAINT FK_INVOICE_DETAIL_PRODUCT
+        FOREIGN KEY (product_id)
+        REFERENCES PRODUCT(product_id)
+);
+
+
+-- =========================================================
+-- 8. PAYMENT
+-- =========================================================
+
+CREATE TABLE PAYMENT (
+    payment_time TIMESTAMP,
+
+    status VARCHAR(30)
+        DEFAULT 'UNPAID'
+        CHECK (
+            status IN (
+                'UNPAID',
+                'PAID',
+                'FAILED'
+            )
+        ),
+
+    payment_method VARCHAR(30)
+        DEFAULT 'CASH'
+        CHECK (
+            payment_method IN (
+                'CASH',
+                'BANK_TRANSFER',
+                'QR'
+            )
+        ),
+
+    transaction_id VARCHAR(36) PRIMARY KEY,
+
+    invoice_id VARCHAR(36),
+
+    amount DECIMAL(12,2)
+        CHECK (amount >= 0),
+
+    CONSTRAINT FK_PAYMENT_INVOICE
+        FOREIGN KEY (invoice_id)
+        REFERENCES INVOICE(invoice_id)
+);
+
+
+-- =========================================================
+-- 9. VOUCHER
+-- =========================================================
+
+CREATE TABLE VOUCHER (
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    voucher_id VARCHAR(36) PRIMARY KEY,
+
+    employee_id VARCHAR(36),
+
+    total_amount DECIMAL(12,2) NOT NULL,
+
+    CONSTRAINT FK_VOUCHER_EMPLOYEE
+        FOREIGN KEY (employee_id)
+        REFERENCES EMPLOYEE(employee_id)
+);
+
+
+-- =========================================================
+-- 10. PURCHASE RECEIPT
+-- =========================================================
+
+CREATE TABLE PURCHASE_RECEIPT (
+    voucher_id VARCHAR(36) PRIMARY KEY,
+
+    supplier_name VARCHAR(20) NOT NULL,
+
+    CONSTRAINT FK_PURCHASE_RECEIPT_VOUCHER
+        FOREIGN KEY (voucher_id)
+        REFERENCES VOUCHER(voucher_id)
+);
+
+
+-- =========================================================
+-- 11. PURCHASE RECEIPT DETAIL
+-- =========================================================
+
+CREATE TABLE PURCHASE_RECEIPT_DETAIL (
+    purchased_quantity INTEGER NOT NULL
+        CHECK (purchased_quantity > 0),
+
+    expiration_date TIMESTAMP NOT NULL,
+
+    purchase_detail_id VARCHAR(36) PRIMARY KEY,
+
+    voucher_id VARCHAR(36),
+
+    product_id VARCHAR(36),
+
+    purchase_price DECIMAL(12,2)
+        CHECK (purchase_price > 0),
+
+    CONSTRAINT FK_PURCHASE_DETAIL_RECEIPT
+        FOREIGN KEY (voucher_id)
+        REFERENCES PURCHASE_RECEIPT(voucher_id),
+
+    CONSTRAINT FK_PURCHASE_DETAIL_PRODUCT
+        FOREIGN KEY (product_id)
+        REFERENCES PRODUCT(product_id)
+);
+
+
+-- =========================================================
+-- 12. DISPOSAL RECEIPT
+-- =========================================================
+
+CREATE TABLE DISPOSAL_RECEIPT (
+    voucher_id VARCHAR(36) PRIMARY KEY,
+
+    CONSTRAINT FK_DISPOSAL_RECEIPT_VOUCHER
+        FOREIGN KEY (voucher_id)
+        REFERENCES VOUCHER(voucher_id)
+);
+
+
+-- =========================================================
+-- 13. DISPOSAL RECEIPT DETAIL
+-- =========================================================
+
+CREATE TABLE DISPOSAL_RECEIPT_DETAIL (
+    disposed_quantity INTEGER NOT NULL,
+
+    disposal_reason TEXT,
+
+    disposal_detail_id VARCHAR(36) PRIMARY KEY,
+
+    voucher_id VARCHAR(36),
+
+    product_id VARCHAR(36),
+
+    CONSTRAINT FK_DISPOSAL_DETAIL_RECEIPT
+        FOREIGN KEY (voucher_id)
+        REFERENCES DISPOSAL_RECEIPT(voucher_id),
+
+    CONSTRAINT FK_DISPOSAL_DETAIL_PRODUCT
+        FOREIGN KEY (product_id)
+        REFERENCES PRODUCT(product_id)
+);
+
+
+-- =========================================================
+-- 14. RETURN RECEIPT
+-- =========================================================
+
+CREATE TABLE RETURN_RECEIPT (
+    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    return_reason TEXT,
+
+    return_receipt_id VARCHAR(36) PRIMARY KEY,
+
+    employee_id VARCHAR(36) NOT NULL,
+
+    original_invoice_id VARCHAR(36) NOT NULL,
+
+    refund_amount DECIMAL(12,2),
+
+    CONSTRAINT FK_RETURN_RECEIPT_EMPLOYEE
+        FOREIGN KEY (employee_id)
+        REFERENCES EMPLOYEE(employee_id),
+
+    CONSTRAINT FK_RETURN_RECEIPT_INVOICE
+        FOREIGN KEY (original_invoice_id)
+        REFERENCES INVOICE(invoice_id)
+);
+
+
+-- =========================================================
+-- 15. INVENTORY REPORT
+-- =========================================================
+
+CREATE TABLE INVENTORY_REPORT (
+    report_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    report_id VARCHAR(36) PRIMARY KEY,
+
+    employee_id VARCHAR(36),
+
+    CONSTRAINT FK_INVENTORY_REPORT_EMPLOYEE
+        FOREIGN KEY (employee_id)
+        REFERENCES EMPLOYEE(employee_id)
+);
+
+
+-- =========================================================
+-- 16. INVENTORY REPORT DETAIL
+-- =========================================================
+
+CREATE TABLE INVENTORY_REPORT_DETAIL (
+    report_id VARCHAR(36) NOT NULL,
+
+    product_id VARCHAR(36),
+
+    system_quantity INTEGER
+        CHECK (system_quantity >= 0),
+
+    actual_quantity INTEGER
+        CHECK (actual_quantity >= 0),
+
+    CONSTRAINT FK_INVENTORY_DETAIL_REPORT
+        FOREIGN KEY (report_id)
+        REFERENCES INVENTORY_REPORT(report_id),
+
+    CONSTRAINT FK_INVENTORY_DETAIL_PRODUCT
+        FOREIGN KEY (product_id)
+        REFERENCES PRODUCT(product_id)
+);
+
+
+-- =========================================================
+-- INSERT TEST DATA
+-- =========================================================
+
+
+-- =========================================================
+-- CUSTOMER
+-- =========================================================
+
+INSERT INTO CUSTOMER
+(
+    created_at,
+    loyalty_points,
+    customer_id,
+    full_name,
+    phone_number,
+    email
+)
+VALUES
+(
+    CURRENT_TIMESTAMP,
+    100,
+    'CUS-001',
+    'Nguyen Van An',
+    '0901111111',
+    'an@example.com'
+),
+(
+    CURRENT_TIMESTAMP,
+    250,
+    'CUS-002',
+    'Tran Thi Binh',
+    '0902222222',
+    'binh@example.com'
+),
+(
+    CURRENT_TIMESTAMP,
+    500,
+    'CUS-003',
+    'Le Van Cuong',
+    '0903333333',
+    'cuong@example.com'
+),
+(
+    CURRENT_TIMESTAMP,
+    1000,
+    'CUS-004',
+    'Pham Thi Dung',
+    '0904444444',
+    'dung@example.com'
+),
+(
+    CURRENT_TIMESTAMP,
+    50,
+    'CUS-005',
+    'Hoang Van Em',
+    '0905555555',
+    NULL
+);
+
+
+-- =========================================================
+-- EMPLOYEE
+-- =========================================================
+
+INSERT INTO EMPLOYEE
+(
+    position,
+    employee_id,
+    full_name,
+    username,
+    password,
+    phone_number,
+    status
+)
+VALUES
+(
+    'STORE_OWNER',
+    'EMP-001',
+    'Nguyen Van Admin',
+    'admin',
+    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '0911111111',
+    TRUE
+),
+(
+    'CASHIER',
+    'EMP-002',
+    'Tran Thi Thu Ngan',
+    'cashier01',
+    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '0912222222',
+    TRUE
+),
+(
+    'INVENTORY_MANAGER',
+    'EMP-003',
+    'Le Van Kho',
+    'warehouse01',
+    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+    '0913333333',
+    TRUE
+);
+
+
+-- =========================================================
+-- PRODUCT CATEGORY
+-- =========================================================
+
+INSERT INTO PRODUCT_CATEGORY
+(
+    category_id,
+    category_name
+)
+VALUES
+('CAT-001', 'Beverages'),
+('CAT-002', 'Confectionery'),
+('CAT-003', 'Dairy'),
+('CAT-004', 'Instant Food'),
+('CAT-005', 'Seasoning'),
+('CAT-006', 'Vegetables'),
+('CAT-007', 'Meat and Seafood'),
+('CAT-008', 'Household');
+
+
+-- =========================================================
+-- PRODUCT
+-- =========================================================
+
+INSERT INTO PRODUCT
+(
+    product_status,
+    stock_quantity,
+    expiration_date,
+    product_id,
+    category_id,
+    product_name
+)
+VALUES
+(
+    'ON_SALE',
+    100,
+    '2027-12-31',
+    'PRD-001',
+    'CAT-001',
+    'Coca Cola 330ml'
+),
+(
+    'ON_SALE',
+    80,
+    '2027-12-31',
+    'PRD-002',
+    'CAT-001',
+    'Pepsi 330ml'
+),
+(
+    'ON_SALE',
+    200,
+    '2028-06-30',
+    'PRD-003',
+    'CAT-001',
+    'Aquafina 500ml'
+),
+(
+    'ON_SALE',
+    50,
+    '2027-06-30',
+    'PRD-004',
+    'CAT-002',
+    'Oreo 133g'
+),
+(
+    'ON_SALE',
+    150,
+    '2027-12-31',
+    'PRD-005',
+    'CAT-002',
+    'Alpenliebe Candy'
+),
+(
+    'ON_SALE',
+    60,
+    '2027-01-15',
+    'PRD-006',
+    'CAT-003',
+    'Vinamilk Fresh Milk 1L'
+),
+(
+    'ON_SALE',
+    40,
+    '2027-02-20',
+    'PRD-007',
+    'CAT-003',
+    'TH True Milk 1L'
+),
+(
+    'ON_SALE',
+    500,
+    '2027-10-30',
+    'PRD-008',
+    'CAT-004',
+    'Hao Hao Spicy Shrimp Noodles'
+),
+(
+    'ON_SALE',
+    200,
+    '2027-08-15',
+    'PRD-009',
+    'CAT-004',
+    'Vifon Beef Pho'
+),
+(
+    'ON_SALE',
+    100,
+    '2027-05-20',
+    'PRD-010',
+    'CAT-005',
+    'Nam Ngu Fish Sauce 500ml'
+),
+(
+    'ON_SALE',
+    80,
+    '2027-03-10',
+    'PRD-011',
+    'CAT-005',
+    'Tuong An Cooking Oil 1L'
+),
+(
+    'ON_SALE',
+    30,
+    '2027-10-10',
+    'PRD-012',
+    'CAT-006',
+    'Carrot 500g'
+),
+(
+    'ON_SALE',
+    20,
+    '2027-10-05',
+    'PRD-013',
+    'CAT-007',
+    'Pork Belly 500g'
+),
+(
+    'ON_SALE',
+    60,
+    '2028-01-01',
+    'PRD-014',
+    'CAT-008',
+    'Sunlight Dishwashing Liquid 750ml'
+),
+(
+    'ON_SALE',
+    25,
+    '2028-01-01',
+    'PRD-015',
+    'CAT-008',
+    'Omo Detergent 3kg'
+),
+(
+    'DISCONTINUED',
+    0,
+    '2027-03-31',
+    'PRD-016',
+    'CAT-002',
+    'KitKat Chocolate'
+);
+
+
+-- =========================================================
+-- REVIEW
+-- =========================================================
+
+INSERT INTO REVIEW
+(
+    review_date,
+    review_id,
+    customer_id,
+    rating,
+    content
+)
+VALUES
+(
+    CURRENT_TIMESTAMP,
+    'REV-001',
+    'CUS-001',
+    5,
+    'Good service and reasonable prices'
+),
+(
+    CURRENT_TIMESTAMP,
+    'REV-002',
+    'CUS-002',
+    4,
+    'Many products available'
+),
+(
+    CURRENT_TIMESTAMP,
+    'REV-003',
+    'CUS-003',
+    5,
+    'Very satisfied with the service'
+),
+(
+    CURRENT_TIMESTAMP,
+    'REV-004',
+    'CUS-004',
+    3,
+    'Checkout was a little slow'
+);
+
+
+-- =========================================================
+-- INVOICE
+-- =========================================================
+
+INSERT INTO INVOICE
+(
+    created_at,
+    status,
+    invoice_id,
+    customer_id,
+    employee_id,
+    original_total,
+    discount_amount
+)
+VALUES
+(
+    CURRENT_TIMESTAMP,
+    'PAID',
+    'INV-001',
+    'CUS-001',
+    'EMP-002',
+    150000,
+    0
+),
+(
+    CURRENT_TIMESTAMP,
+    'PAID',
+    'INV-002',
+    'CUS-002',
+    'EMP-002',
+    320000,
+    16000
+),
+(
+    CURRENT_TIMESTAMP,
+    'PAID',
+    'INV-003',
+    'CUS-003',
+    'EMP-002',
+    500000,
+    50000
+),
+(
+    CURRENT_TIMESTAMP,
+    'PAID',
+    'INV-004',
+    NULL,
+    'EMP-002',
+    85000,
+    0
+),
+(
+    CURRENT_TIMESTAMP,
+    'PENDING',
+    'INV-005',
+    'CUS-001',
+    'EMP-002',
+    200000,
+    0
+),
+(
+    CURRENT_TIMESTAMP,
+    'CANCELLED',
+    'INV-006',
+    'CUS-004',
+    'EMP-002',
+    450000,
+    0
+);
+
+
+-- =========================================================
+-- INVOICE DETAIL
+-- =========================================================
+
+INSERT INTO INVOICE_DETAIL
+(
+    quantity,
+    invoice_detail_id,
+    invoice_id,
+    product_id,
+    unit_price,
+    subtotal
+)
+VALUES
+(
+    3,
+    'IND-001',
+    'INV-001',
+    'PRD-001',
+    15000,
+    45000
+),
+(
+    5,
+    'IND-002',
+    'INV-001',
+    'PRD-008',
+    5000,
+    25000
+),
+(
+    2,
+    'IND-003',
+    'INV-001',
+    'PRD-004',
+    20000,
+    40000
+),
+(
+    2,
+    'IND-004',
+    'INV-002',
+    'PRD-006',
+    35000,
+    70000
+),
+(
+    2,
+    'IND-005',
+    'INV-002',
+    'PRD-010',
+    45000,
+    90000
+),
+(
+    2,
+    'IND-006',
+    'INV-002',
+    'PRD-011',
+    55000,
+    110000
+),
+(
+    3,
+    'IND-007',
+    'INV-003',
+    'PRD-013',
+    120000,
+    360000
+),
+(
+    2,
+    'IND-008',
+    'INV-003',
+    'PRD-012',
+    25000,
+    50000
+),
+(
+    1,
+    'IND-009',
+    'INV-003',
+    'PRD-003',
+    10000,
+    10000
+),
+(
+    5,
+    'IND-010',
+    'INV-004',
+    'PRD-002',
+    15000,
+    75000
+),
+(
+    1,
+    'IND-011',
+    'INV-004',
+    'PRD-003',
+    10000,
+    10000
+),
+(
+    4,
+    'IND-012',
+    'INV-005',
+    'PRD-006',
+    35000,
+    140000
+),
+(
+    2,
+    'IND-013',
+    'INV-005',
+    'PRD-019',
+    30000,
+    60000
+),
+(
+    1,
+    'IND-014',
+    'INV-006',
+    'PRD-015',
+    145000,
+    145000
+),
+(
+    5,
+    'IND-015',
+    'INV-006',
+    'PRD-014',
+    61000,
+    305000
+);
+
+
+-- =========================================================
+-- PAYMENT
+-- =========================================================
+
+INSERT INTO PAYMENT
+(
+    payment_time,
+    status,
+    payment_method,
+    transaction_id,
+    invoice_id,
+    amount
+)
+VALUES
+(
+    CURRENT_TIMESTAMP,
+    'PAID',
+    'CASH',
+    'PAY-001',
+    'INV-001',
+    150000
+),
+(
+    CURRENT_TIMESTAMP,
+    'PAID',
+    'BANK_TRANSFER',
+    'PAY-002',
+    'INV-002',
+    304000
+),
+(
+    CURRENT_TIMESTAMP,
+    'PAID',
+    'QR',
+    'PAY-003',
+    'INV-003',
+    450000
+),
+(
+    CURRENT_TIMESTAMP,
+    'PAID',
+    'CASH',
+    'PAY-004',
+    'INV-004',
+    85000
+);
+
+
+-- =========================================================
+-- VOUCHER
+-- =========================================================
+
+INSERT INTO VOUCHER
+(
+    created_at,
+    voucher_id,
+    employee_id,
+    total_amount
+)
+VALUES
+(
+    CURRENT_TIMESTAMP,
+    'VCH-001',
+    'EMP-003',
+    3500000
+),
+(
+    CURRENT_TIMESTAMP,
+    'VCH-002',
+    'EMP-003',
+    1800000
+),
+(
+    CURRENT_TIMESTAMP,
+    'VCH-003',
+    'EMP-003',
+    250000
+),
+(
+    CURRENT_TIMESTAMP,
+    'VCH-004',
+    'EMP-003',
+    150000
+);
+
+
+-- =========================================================
+-- PURCHASE RECEIPT
+-- =========================================================
+
+INSERT INTO PURCHASE_RECEIPT
+(
+    voucher_id,
+    supplier_name
+)
+VALUES
+(
+    'VCH-001',
+    'Vinamilk'
+),
+(
+    'VCH-002',
+    'Masan'
+);
+
+
+-- =========================================================
+-- DISPOSAL RECEIPT
+-- =========================================================
+
+INSERT INTO DISPOSAL_RECEIPT
+(
+    voucher_id
+)
+VALUES
+(
+    'VCH-003'
+),
+(
+    'VCH-004'
+);
+
+
+-- =========================================================
+-- PURCHASE RECEIPT DETAIL
+-- =========================================================
+
+INSERT INTO PURCHASE_RECEIPT_DETAIL
+(
+    purchased_quantity,
+    expiration_date,
+    purchase_detail_id,
+    voucher_id,
+    product_id,
+    purchase_price
+)
+VALUES
+(
+    100,
+    '2027-01-15',
+    'PUR-001',
+    'VCH-001',
+    'PRD-006',
+    20000
+),
+(
+    60,
+    '2027-02-20',
+    'PUR-002',
+    'VCH-001',
+    'PRD-007',
+    20000
+),
+(
+    500,
+    '2027-10-30',
+    'PUR-003',
+    'VCH-002',
+    'PRD-008',
+    2000
+),
+(
+    100,
+    '2027-05-20',
+    'PUR-004',
+    'VCH-002',
+    'PRD-010',
+    5000
+);
+
+
+-- =========================================================
+-- DISPOSAL RECEIPT DETAIL
+-- =========================================================
+
+INSERT INTO DISPOSAL_RECEIPT_DETAIL
+(
+    disposed_quantity,
+    disposal_reason,
+    disposal_detail_id,
+    voucher_id,
+    product_id
+)
+VALUES
+(
+    20,
+    'Expired',
+    'DIS-001',
+    'VCH-003',
+    'PRD-016'
+),
+(
+    5,
+    'Damaged',
+    'DIS-002',
+    'VCH-003',
+    'PRD-012'
+),
+(
+    10,
+    'Damaged packaging',
+    'DIS-003',
+    'VCH-004',
+    'PRD-005'
+);
+
+
+-- =========================================================
+-- INVENTORY REPORT
+-- =========================================================
+
+INSERT INTO INVENTORY_REPORT
+(
+    report_date,
+    report_id,
+    employee_id
+)
+VALUES
+(
+    CURRENT_TIMESTAMP,
+    'RPT-001',
+    'EMP-001'
+),
+(
+    CURRENT_TIMESTAMP,
+    'RPT-002',
+    'EMP-003'
+);
+
+
+-- =========================================================
+-- INVENTORY REPORT DETAIL
+-- =========================================================
+
+INSERT INTO INVENTORY_REPORT_DETAIL
+(
+    report_id,
+    product_id,
+    system_quantity,
+    actual_quantity
+)
+VALUES
+(
+    'RPT-001',
+    'PRD-001',
+    100,
+    100
+),
+(
+    'RPT-001',
+    'PRD-002',
+    80,
+    78
+),
+(
+    'RPT-001',
+    'PRD-003',
+    200,
+    200
+),
+(
+    'RPT-002',
+    'PRD-006',
+    60,
+    60
+),
+(
+    'RPT-002',
+    'PRD-007',
+    40,
+    39
+);
+
+
+-- =========================================================
+-- RETURN RECEIPT
+-- =========================================================
+
+INSERT INTO RETURN_RECEIPT
+(
+    requested_at,
+    return_reason,
+    return_receipt_id,
+    employee_id,
+    original_invoice_id,
+    refund_amount
+)
+VALUES
+(
+    CURRENT_TIMESTAMP,
+    'Customer changed mind',
+    'RET-001',
+    'EMP-002',
+    'INV-001',
+    15000
+),
+(
+    CURRENT_TIMESTAMP,
+    'Damaged product',
+    'RET-002',
+    'EMP-002',
+    'INV-003',
+    120000
+);
+
+
+-- =========================================================
+-- VERIFY
+-- =========================================================
+
+SELECT 'CUSTOMER' AS table_name, COUNT(*) AS total
+FROM CUSTOMER
+
+UNION ALL
+
+SELECT 'REVIEW', COUNT(*)
+FROM REVIEW
+
+UNION ALL
+
+SELECT 'EMPLOYEE', COUNT(*)
+FROM EMPLOYEE
+
+UNION ALL
+
+SELECT 'PRODUCT_CATEGORY', COUNT(*)
+FROM PRODUCT_CATEGORY
+
+UNION ALL
+
+SELECT 'PRODUCT', COUNT(*)
+FROM PRODUCT
+
+UNION ALL
+
+SELECT 'INVOICE', COUNT(*)
+FROM INVOICE
+
+UNION ALL
+
+SELECT 'INVOICE_DETAIL', COUNT(*)
+FROM INVOICE_DETAIL
+
+UNION ALL
+
+SELECT 'PAYMENT', COUNT(*)
+FROM PAYMENT
+
+UNION ALL
+
+SELECT 'VOUCHER', COUNT(*)
+FROM VOUCHER
+
+UNION ALL
+
+SELECT 'PURCHASE_RECEIPT', COUNT(*)
+FROM PURCHASE_RECEIPT
+
+UNION ALL
+
+SELECT 'PURCHASE_RECEIPT_DETAIL', COUNT(*)
+FROM PURCHASE_RECEIPT_DETAIL
+
+UNION ALL
+
+SELECT 'DISPOSAL_RECEIPT', COUNT(*)
+FROM DISPOSAL_RECEIPT
+
+UNION ALL
+
+SELECT 'DISPOSAL_RECEIPT_DETAIL', COUNT(*)
+FROM DISPOSAL_RECEIPT_DETAIL
+
+UNION ALL
+
+SELECT 'RETURN_RECEIPT', COUNT(*)
+FROM RETURN_RECEIPT
+
+UNION ALL
+
+SELECT 'INVENTORY_REPORT', COUNT(*)
+FROM INVENTORY_REPORT
+
+UNION ALL
+
+SELECT 'INVENTORY_REPORT_DETAIL', COUNT(*)
+FROM INVENTORY_REPORT_DETAIL;
