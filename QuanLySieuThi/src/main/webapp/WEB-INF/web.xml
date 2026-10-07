@@ -14,39 +14,12 @@
     </filter-mapping>
 
     <filter>
-        <filter-name>AuthFilter</filter-name>
-        <filter-class>com.mycompany.quanlysieuthi.security.AuthFilter</filter-class>
+        <filter-name>SecurityMiddleware</filter-name>
+        <filter-class>com.mycompany.quanlysieuthi.middleware.SecurityMiddleware</filter-class>
     </filter>
     <filter-mapping>
-        <filter-name>AuthFilter</filter-name>
-        <url-pattern>/api/employee</url-pattern>
-        <url-pattern>/api/employee/*</url-pattern>
-        <url-pattern>/api/employees</url-pattern>
-        <url-pattern>/api/employees/*</url-pattern>
-        <url-pattern>/api/customer</url-pattern>
-        <url-pattern>/api/customer/*</url-pattern>
-    </filter-mapping>
-
-    <filter>
-        <filter-name>OwnerRoleFilter</filter-name>
-        <filter-class>com.mycompany.quanlysieuthi.security.OwnerRoleFilter</filter-class>
-    </filter>
-    <filter-mapping>
-        <filter-name>OwnerRoleFilter</filter-name>
-        <url-pattern>/api/employee</url-pattern>
-        <url-pattern>/api/employee/*</url-pattern>
-        <url-pattern>/api/employees</url-pattern>
-        <url-pattern>/api/employees/*</url-pattern>
-    </filter-mapping>
-
-    <filter>
-        <filter-name>StaffRoleFilter</filter-name>
-        <filter-class>com.mycompany.quanlysieuthi.customer.StaffRoleFilter</filter-class>
-    </filter>
-    <filter-mapping>
-        <filter-name>StaffRoleFilter</filter-name>
-        <url-pattern>/api/customer</url-pattern>
-        <url-pattern>/api/customer/*</url-pattern>
+        <filter-name>SecurityMiddleware</filter-name>
+        <url-pattern>/api/*</url-pattern>
     </filter-mapping>
 
     <session-config>

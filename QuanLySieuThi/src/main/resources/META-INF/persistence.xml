@@ -8,14 +8,16 @@
         <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
 
         <!-- Managed Entity Classes -->
-        <class>com.mycompany.quanlysieuthi.employee.Employee</class>
-        <class>com.mycompany.quanlysieuthi.purchasereceipt.entity.ProductCategory</class>
-        <class>com.mycompany.quanlysieuthi.purchasereceipt.entity.Product</class>
-        <class>com.mycompany.quanlysieuthi.purchasereceipt.entity.Voucher</class>
-        <class>com.mycompany.quanlysieuthi.purchasereceipt.entity.PurchaseReceipt</class>
-        <class>com.mycompany.quanlysieuthi.purchasereceipt.entity.PurchaseReceiptDetail</class>
-        <class>com.mycompany.quanlysieuthi.report.entity.InventoryReport</class>
-        <class>com.mycompany.quanlysieuthi.report.entity.InventoryReportDetail</class>
+        <class>com.mycompany.quanlysieuthi.modules.employee.Employee</class>
+        <class>com.mycompany.quanlysieuthi.modules.customer.Customer</class>
+        <class>com.mycompany.quanlysieuthi.modules.customer.Invoice</class>
+        <class>com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.ProductCategory</class>
+        <class>com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.Product</class>
+        <class>com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.Voucher</class>
+        <class>com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.PurchaseReceipt</class>
+        <class>com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.PurchaseReceiptDetail</class>
+        <class>com.mycompany.quanlysieuthi.modules.report.entity.InventoryReport</class>
+        <class>com.mycompany.quanlysieuthi.modules.report.entity.InventoryReportDetail</class>
 
         <properties>
             <!-- Provider -->
