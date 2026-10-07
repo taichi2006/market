@@ -11,6 +11,7 @@
         <class>com.mycompany.quanlysieuthi.employee.Employee</class>
         <class>com.mycompany.quanlysieuthi.customer.Customer</class>
         <class>com.mycompany.quanlysieuthi.customer.Invoice</class>
+        <class>com.mycompany.quanlysieuthi.feedback.Feedback</class>
 
         <properties>
             <!-- Provider -->

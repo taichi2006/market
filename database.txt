@@ -56,6 +56,26 @@ CREATE TABLE REVIEW (
 
 
 -- =========================================================
+-- 2.1. STORE_FEEDBACK
+-- =========================================================
+
+CREATE TABLE STORE_FEEDBACK (
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    feedback_id VARCHAR(36) PRIMARY KEY,
+
+    customer_name VARCHAR(100),
+
+    phone_number VARCHAR(15),
+
+    rating INTEGER NOT NULL
+        CHECK (rating >= 1 AND rating <= 5),
+
+    comment TEXT
+);
+
+
+-- =========================================================
 -- 3. EMPLOYEE
 -- =========================================================
 

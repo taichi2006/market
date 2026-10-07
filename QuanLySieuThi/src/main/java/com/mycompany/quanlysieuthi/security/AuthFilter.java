@@ -36,6 +36,14 @@ public class AuthFilter implements Filter {
             return;
         }
 
+        // Allow public POST /api/feedback (no auth required)
+        String requestUri = request.getRequestURI();
+        if ("POST".equalsIgnoreCase(request.getMethod()) && requestUri != null
+                && requestUri.contains("/api/feedback")) {
+            filterChain.doFilter(servletRequest, servletResponse);
+            return;
+        }
+
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             ResponseUtil.sendError(response, HttpServletResponse.SC_UNAUTHORIZED,
