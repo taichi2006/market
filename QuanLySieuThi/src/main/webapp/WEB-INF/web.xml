@@ -14,6 +14,16 @@
     </filter-mapping>
 
     <filter>
+        <filter-name>RateLimitFilter</filter-name>
+        <filter-class>com.mycompany.quanlysieuthi.feedback.RateLimitFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>RateLimitFilter</filter-name>
+        <url-pattern>/api/feedback</url-pattern>
+        <url-pattern>/api/feedback/*</url-pattern>
+    </filter-mapping>
+
+    <filter>
         <filter-name>AuthFilter</filter-name>
         <filter-class>com.mycompany.quanlysieuthi.security.AuthFilter</filter-class>
     </filter>
@@ -25,6 +35,8 @@
         <url-pattern>/api/employees/*</url-pattern>
         <url-pattern>/api/customer</url-pattern>
         <url-pattern>/api/customer/*</url-pattern>
+        <url-pattern>/api/feedback</url-pattern>
+        <url-pattern>/api/feedback/*</url-pattern>
     </filter-mapping>
 
     <filter>
@@ -37,6 +49,8 @@
         <url-pattern>/api/employee/*</url-pattern>
         <url-pattern>/api/employees</url-pattern>
         <url-pattern>/api/employees/*</url-pattern>
+        <url-pattern>/api/feedback</url-pattern>
+        <url-pattern>/api/feedback/*</url-pattern>
     </filter-mapping>
 
     <filter>

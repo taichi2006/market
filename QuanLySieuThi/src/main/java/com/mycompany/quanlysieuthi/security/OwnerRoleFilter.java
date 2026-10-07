@@ -36,6 +36,14 @@ public class OwnerRoleFilter implements Filter {
             return;
         }
 
+        // Allow public POST /api/feedback (no auth required)
+        String uri = request.getRequestURI();
+        if ("POST".equalsIgnoreCase(request.getMethod()) && uri != null
+                && uri.contains("/api/feedback")) {
+            filterChain.doFilter(servletRequest, servletResponse);
+            return;
+        }
+
         Claims claims = (Claims) request.getAttribute("currentUser");
         if (claims == null) {
             ResponseUtil.sendError(response, HttpServletResponse.SC_UNAUTHORIZED,
@@ -52,7 +60,8 @@ public class OwnerRoleFilter implements Filter {
         }
 
         // Allow an employee to view their own profile (GET /api/employee/:id)
-        if ("GET".equalsIgnoreCase(request.getMethod())) {
+        boolean isEmployeeUri = uri != null && (uri.contains("/employee") || uri.contains("/employees"));
+        if (isEmployeeUri && "GET".equalsIgnoreCase(request.getMethod())) {
             String targetId = extractTargetId(request);
             String currentEmployeeId = claims.get("employeeId", String.class);
             if (targetId != null && currentEmployeeId != null && targetId.equalsIgnoreCase(currentEmployeeId.trim())) {
@@ -67,7 +76,7 @@ public class OwnerRoleFilter implements Filter {
         }
 
         ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
-                "Người gọi không phải là STORE_OWNER.");
+                "Người dùng không có quyền truy cập (không phải STORE_OWNER).");
     }
 
     public static String extractTargetId(HttpServletRequest request) {
