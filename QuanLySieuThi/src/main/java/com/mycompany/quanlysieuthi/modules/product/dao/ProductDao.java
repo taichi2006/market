@@ -4,6 +4,7 @@ import com.mycompany.quanlysieuthi.config.JpaUtil;
 import com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.Product;
 import com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.ProductCategory;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
 import jakarta.persistence.TypedQuery;
 
 import java.util.List;
@@ -76,6 +77,50 @@ public class ProductDao {
                     .setParameter("productId", productId.trim())
                     .getResultList();
             return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
+        } finally {
+            em.close();
+        }
+    }
+
+    public Optional<Product> findById(String productId) {
+        if (productId == null || productId.trim().isEmpty()) {
+            return Optional.empty();
+        }
+        EntityManager em = JpaUtil.getEntityManager();
+        try {
+            Product product = em.find(Product.class, productId.trim());
+            return Optional.ofNullable(product);
+        } finally {
+            em.close();
+        }
+    }
+
+    public boolean existsCategoryById(String categoryId) {
+        if (categoryId == null || categoryId.trim().isEmpty()) {
+            return false;
+        }
+        EntityManager em = JpaUtil.getEntityManager();
+        try {
+            ProductCategory category = em.find(ProductCategory.class, categoryId.trim());
+            return category != null;
+        } finally {
+            em.close();
+        }
+    }
+
+    public Product updateProduct(Product product) {
+        EntityManager em = JpaUtil.getEntityManager();
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            Product updated = em.merge(product);
+            tx.commit();
+            return updated;
+        } catch (Exception e) {
+            if (tx.isActive()) {
+                tx.rollback();
+            }
+            throw new RuntimeException("Lỗi khi cập nhật sản phẩm: " + e.getMessage(), e);
         } finally {
             em.close();
         }

@@ -119,6 +119,8 @@ CREATE TABLE PRODUCT (
 
     product_name VARCHAR(100) NOT NULL,
 
+    unit_price numeric(12, 2) NOT NULL,
+
     CONSTRAINT FK_PRODUCT_CATEGORY
         FOREIGN KEY (category_id)
         REFERENCES PRODUCT_CATEGORY(category_id)

@@ -1,9 +1,14 @@
 package com.mycompany.quanlysieuthi.modules.product.controller;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
+import com.mycompany.quanlysieuthi.modules.product.dto.request.UpdateProductRequest;
 import com.mycompany.quanlysieuthi.modules.product.dto.response.ProductResponseDto;
+import com.mycompany.quanlysieuthi.modules.product.dto.response.UpdateProductResponseDto;
 import com.mycompany.quanlysieuthi.modules.product.service.ProductService;
 import com.mycompany.quanlysieuthi.util.NotFoundException;
 import com.mycompany.quanlysieuthi.util.ResponseUtil;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,13 +19,66 @@ import java.util.List;
 
 /**
  * Controller handling Product endpoints:
- * GET /api/product (or /api/product/)
- * GET /api/product/:id
+ * GET   /api/product (or /api/product/)
+ * GET   /api/product/:id
+ * PATCH /api/product/:id
  */
 @WebServlet(name = "ProductController", urlPatterns = {"/api/product", "/api/product/*"})
 public class ProductController extends HttpServlet {
 
     private final ProductService productService = new ProductService();
+    private final Gson gson = new Gson();
+
+    @Override
+    protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        if ("PATCH".equalsIgnoreCase(req.getMethod())) {
+            doPatch(req, resp);
+        } else {
+            super.service(req, resp);
+        }
+    }
+
+    protected void doPatch(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String pathInfo = req.getPathInfo();
+        if (pathInfo == null || pathInfo.isEmpty() || pathInfo.equals("/")) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Thiếu ID sản phẩm cần cập nhật");
+            return;
+        }
+
+        String path = pathInfo.startsWith("/") ? pathInfo.substring(1).trim() : pathInfo.trim();
+        if (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1).trim();
+        }
+
+        String[] segments = path.split("/");
+        if (segments.length != 1 || segments[0].isEmpty()) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found: " + pathInfo);
+            return;
+        }
+
+        String id = segments[0];
+
+        try {
+            UpdateProductRequest requestDto = gson.fromJson(req.getReader(), UpdateProductRequest.class);
+            if (requestDto == null) {
+                ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Request body không được để trống");
+                return;
+            }
+
+            UpdateProductResponseDto data = productService.updateProduct(id, requestDto);
+            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Cập nhật sản phẩm thành công", data);
+
+        } catch (JsonSyntaxException e) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Malformed JSON payload: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        } catch (NotFoundException e) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Lỗi hệ thống khi cập nhật sản phẩm: " + e.getMessage());
+        }
+    }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {

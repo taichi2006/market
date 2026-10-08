@@ -6,6 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -37,17 +38,26 @@ public class Product implements Serializable {
     @Column(name = "product_status", length = 50)
     private String productStatus = "ON_SALE";
 
+    @Column(name = "unit_price", precision = 12, scale = 2)
+    private BigDecimal unitPrice;
+
     public Product() {
     }
 
     public Product(String productId, String categoryId, String productName,
                    Integer stockQuantity, LocalDateTime expirationDate, String productStatus) {
+        this(productId, categoryId, productName, stockQuantity, expirationDate, productStatus, null);
+    }
+
+    public Product(String productId, String categoryId, String productName,
+                   Integer stockQuantity, LocalDateTime expirationDate, String productStatus, BigDecimal unitPrice) {
         this.productId = productId;
         this.categoryId = categoryId;
         this.productName = productName;
         this.stockQuantity = stockQuantity;
         this.expirationDate = expirationDate;
         this.productStatus = productStatus != null ? productStatus : "ON_SALE";
+        this.unitPrice = unitPrice;
     }
 
     public String getProductId() {
@@ -96,6 +106,14 @@ public class Product implements Serializable {
 
     public void setProductStatus(String productStatus) {
         this.productStatus = productStatus;
+    }
+
+    public BigDecimal getUnitPrice() {
+        return unitPrice;
+    }
+
+    public void setUnitPrice(BigDecimal unitPrice) {
+        this.unitPrice = unitPrice;
     }
 
     @Override

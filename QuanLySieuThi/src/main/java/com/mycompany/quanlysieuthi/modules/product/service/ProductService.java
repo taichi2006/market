@@ -1,11 +1,14 @@
 package com.mycompany.quanlysieuthi.modules.product.service;
 
 import com.mycompany.quanlysieuthi.modules.product.dao.ProductDao;
+import com.mycompany.quanlysieuthi.modules.product.dto.request.UpdateProductRequest;
 import com.mycompany.quanlysieuthi.modules.product.dto.response.ProductCategoryDto;
 import com.mycompany.quanlysieuthi.modules.product.dto.response.ProductResponseDto;
+import com.mycompany.quanlysieuthi.modules.product.dto.response.UpdateProductResponseDto;
 import com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.Product;
 import com.mycompany.quanlysieuthi.util.NotFoundException;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -74,6 +77,7 @@ public class ProductService {
             ProductResponseDto dto = new ProductResponseDto(
                     p.getProductId(),
                     p.getProductName(),
+                    p.getUnitPrice(),
                     p.getStockQuantity(),
                     formattedExpirationDate,
                     p.getProductStatus(),
@@ -116,10 +120,87 @@ public class ProductService {
         return new ProductResponseDto(
                 p.getProductId(),
                 p.getProductName(),
+                p.getUnitPrice(),
                 p.getStockQuantity(),
                 formattedExpirationDate,
                 p.getProductStatus(),
                 categoryDto
+        );
+    }
+
+    public UpdateProductResponseDto updateProduct(String id, UpdateProductRequest request) {
+        if (id == null || id.trim().isEmpty()) {
+            throw new IllegalArgumentException("ID không đúng định dạng UUID.");
+        }
+
+        try {
+            UUID.fromString(id.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("ID không đúng định dạng UUID.");
+        }
+
+        if (request == null) {
+            throw new IllegalArgumentException("Request body không được để trống");
+        }
+
+        if (request.getProductStatus() != null && !request.getProductStatus().trim().isEmpty()) {
+            String status = request.getProductStatus().trim();
+            if (!"ON_SALE".equalsIgnoreCase(status) && !"DISCONTINUED".equalsIgnoreCase(status)) {
+                throw new IllegalArgumentException("productStatus không thuộc ('ON_SALE', 'DISCONTINUED').");
+            }
+        }
+
+        if (request.getUnitPrice() != null) {
+            if (request.getUnitPrice().compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("unitPrice < 0.");
+            }
+        }
+
+        Optional<Product> productOpt = productDao.findById(id.trim());
+        if (productOpt.isEmpty()) {
+            throw new NotFoundException("Không tìm thấy productId hoặc categoryId không tồn tại.");
+        }
+
+        Product product = productOpt.get();
+
+        if (request.getCategoryId() != null && !request.getCategoryId().trim().isEmpty()) {
+            String categoryId = request.getCategoryId().trim();
+            try {
+                UUID.fromString(categoryId);
+            } catch (IllegalArgumentException e) {
+                throw new NotFoundException("Không tìm thấy productId hoặc categoryId không tồn tại.");
+            }
+
+            if (!productDao.existsCategoryById(categoryId)) {
+                throw new NotFoundException("Không tìm thấy productId hoặc categoryId không tồn tại.");
+            }
+            product.setCategoryId(categoryId);
+        }
+
+        if (request.getProductName() != null && !request.getProductName().trim().isEmpty()) {
+            product.setProductName(request.getProductName().trim());
+        }
+
+        if (request.getUnitPrice() != null) {
+            product.setUnitPrice(request.getUnitPrice());
+        }
+
+        if (request.getProductStatus() != null && !request.getProductStatus().trim().isEmpty()) {
+            product.setProductStatus(request.getProductStatus().trim().toUpperCase());
+        }
+
+        Product updatedProduct = productDao.updateProduct(product);
+
+        String formattedExpirationDate = formatIsoUtc(updatedProduct.getExpirationDate());
+
+        return new UpdateProductResponseDto(
+                updatedProduct.getProductId(),
+                updatedProduct.getProductName(),
+                updatedProduct.getCategoryId(),
+                updatedProduct.getUnitPrice(),
+                updatedProduct.getProductStatus(),
+                updatedProduct.getStockQuantity(),
+                formattedExpirationDate
         );
     }
 
