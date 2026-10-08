@@ -3,6 +3,7 @@ package com.mycompany.quanlysieuthi.modules.product.controller;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.mycompany.quanlysieuthi.modules.product.dto.request.UpdateProductRequest;
+import com.mycompany.quanlysieuthi.modules.product.dto.response.LowStockResponseDto;
 import com.mycompany.quanlysieuthi.modules.product.dto.response.ProductResponseDto;
 import com.mycompany.quanlysieuthi.modules.product.dto.response.UpdateProductResponseDto;
 import com.mycompany.quanlysieuthi.modules.product.service.ProductService;
@@ -96,11 +97,53 @@ public class ProductController extends HttpServlet {
 
         String[] segments = path.split("/");
         if (segments.length == 1 && !segments[0].isEmpty()) {
+            if ("low-stock".equalsIgnoreCase(segments[0])) {
+                handleGetLowStockProducts(req, resp);
+                return;
+            }
             handleGetProductDetail(segments[0], resp);
             return;
         }
 
         ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found: " + pathInfo);
+    }
+
+    private void handleGetLowStockProducts(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            String thresholdStr = req.getParameter("threshold");
+            String categoryId = req.getParameter("categoryId");
+            String pageStr = req.getParameter("page");
+            String limitStr = req.getParameter("limit");
+
+            Integer page = null;
+            if (pageStr != null && !pageStr.trim().isEmpty()) {
+                try {
+                    page = Integer.parseInt(pageStr.trim());
+                } catch (NumberFormatException e) {
+                    ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Tham số page phải là số nguyên");
+                    return;
+                }
+            }
+
+            Integer limit = null;
+            if (limitStr != null && !limitStr.trim().isEmpty()) {
+                try {
+                    limit = Integer.parseInt(limitStr.trim());
+                } catch (NumberFormatException e) {
+                    ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Tham số limit phải là số nguyên");
+                    return;
+                }
+            }
+
+            LowStockResponseDto data = productService.getLowStockProducts(thresholdStr, categoryId, page, limit);
+            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Lấy danh sách sản phẩm sắp hết hàng thành công", data);
+
+        } catch (IllegalArgumentException e) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Lỗi hệ thống khi lấy danh sách sản phẩm sắp hết hàng: " + e.getMessage());
+        }
     }
 
     private void handleGetProductDetail(String id, HttpServletResponse resp) throws IOException {

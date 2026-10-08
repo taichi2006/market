@@ -2,6 +2,7 @@ package com.mycompany.quanlysieuthi.modules.product.service;
 
 import com.mycompany.quanlysieuthi.modules.product.dao.ProductDao;
 import com.mycompany.quanlysieuthi.modules.product.dto.request.UpdateProductRequest;
+import com.mycompany.quanlysieuthi.modules.product.dto.response.LowStockResponseDto;
 import com.mycompany.quanlysieuthi.modules.product.dto.response.ProductCategoryDto;
 import com.mycompany.quanlysieuthi.modules.product.dto.response.ProductResponseDto;
 import com.mycompany.quanlysieuthi.modules.product.dto.response.UpdateProductResponseDto;
@@ -202,6 +203,65 @@ public class ProductService {
                 updatedProduct.getStockQuantity(),
                 formattedExpirationDate
         );
+    }
+
+    public LowStockResponseDto getLowStockProducts(String thresholdStr, String categoryId, Integer pageParam, Integer limitParam) {
+        if (thresholdStr == null || thresholdStr.trim().isEmpty()) {
+            throw new IllegalArgumentException("threshold không được truyền vào, không phải số nguyên, hoặc threshold < 0.");
+        }
+
+        int threshold;
+        try {
+            threshold = Integer.parseInt(thresholdStr.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("threshold không được truyền vào, không phải số nguyên, hoặc threshold < 0.");
+        }
+
+        if (threshold < 0) {
+            throw new IllegalArgumentException("threshold không được truyền vào, không phải số nguyên, hoặc threshold < 0.");
+        }
+
+        int page = (pageParam != null) ? pageParam : 1;
+        int limit = (limitParam != null) ? limitParam : 20;
+
+        if (page <= 0) {
+            throw new IllegalArgumentException("Tham số page phải lớn hơn 0");
+        }
+        if (limit <= 0) {
+            throw new IllegalArgumentException("Tham số limit phải lớn hơn 0");
+        }
+
+        String cleanCategoryId = (categoryId != null && !categoryId.trim().isEmpty()) ? categoryId.trim() : null;
+
+        long totalItems = productDao.countLowStockProducts(threshold, cleanCategoryId);
+        List<Object[]> rows = productDao.findLowStockProducts(threshold, cleanCategoryId, page, limit);
+
+        List<ProductResponseDto> items = new ArrayList<>();
+        for (Object[] row : rows) {
+            Product p = (Product) row[0];
+            String categoryName = (String) row[1];
+
+            ProductCategoryDto categoryDto = new ProductCategoryDto(
+                    p.getCategoryId(),
+                    categoryName != null ? categoryName : ""
+            );
+
+            String formattedExpirationDate = formatIsoUtc(p.getExpirationDate());
+
+            ProductResponseDto dto = new ProductResponseDto(
+                    p.getProductId(),
+                    p.getProductName(),
+                    p.getUnitPrice(),
+                    p.getStockQuantity(),
+                    formattedExpirationDate,
+                    p.getProductStatus(),
+                    categoryDto
+            );
+
+            items.add(dto);
+        }
+
+        return new LowStockResponseDto(threshold, totalItems, items);
     }
 
     private String formatIsoUtc(LocalDateTime ldt) {

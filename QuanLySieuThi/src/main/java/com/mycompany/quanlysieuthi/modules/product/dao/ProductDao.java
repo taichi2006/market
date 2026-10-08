@@ -125,5 +125,67 @@ public class ProductDao {
             em.close();
         }
     }
+
+    public List<Object[]> findLowStockProducts(int threshold, String categoryId, int page, int limit) {
+        EntityManager em = JpaUtil.getEntityManager();
+        try {
+            StringBuilder jpql = new StringBuilder(
+                    "SELECT p, c.categoryName " +
+                    "FROM Product p " +
+                    "LEFT JOIN ProductCategory c ON p.categoryId = c.categoryId " +
+                    "WHERE p.stockQuantity <= :threshold " +
+                    "  AND p.productStatus = 'ON_SALE' "
+            );
+
+            if (categoryId != null && !categoryId.trim().isEmpty()) {
+                jpql.append("AND p.categoryId = :categoryId ");
+            }
+
+            jpql.append("ORDER BY p.stockQuantity ASC, p.productName ASC");
+
+            TypedQuery<Object[]> query = em.createQuery(jpql.toString(), Object[].class);
+            query.setParameter("threshold", threshold);
+
+            if (categoryId != null && !categoryId.trim().isEmpty()) {
+                query.setParameter("categoryId", categoryId.trim());
+            }
+
+            int offset = (page - 1) * limit;
+            query.setFirstResult(offset);
+            query.setMaxResults(limit);
+
+            return query.getResultList();
+        } finally {
+            em.close();
+        }
+    }
+
+    public long countLowStockProducts(int threshold, String categoryId) {
+        EntityManager em = JpaUtil.getEntityManager();
+        try {
+            StringBuilder jpql = new StringBuilder(
+                    "SELECT COUNT(p) " +
+                    "FROM Product p " +
+                    "WHERE p.stockQuantity <= :threshold " +
+                    "  AND p.productStatus = 'ON_SALE' "
+            );
+
+            if (categoryId != null && !categoryId.trim().isEmpty()) {
+                jpql.append("AND p.categoryId = :categoryId ");
+            }
+
+            TypedQuery<Long> query = em.createQuery(jpql.toString(), Long.class);
+            query.setParameter("threshold", threshold);
+
+            if (categoryId != null && !categoryId.trim().isEmpty()) {
+                query.setParameter("categoryId", categoryId.trim());
+            }
+
+            Long count = query.getSingleResult();
+            return count != null ? count : 0L;
+        } finally {
+            em.close();
+        }
+    }
 }
 
