@@ -18,6 +18,7 @@
         <class>com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.PurchaseReceiptDetail</class>
         <class>com.mycompany.quanlysieuthi.modules.report.entity.InventoryReport</class>
         <class>com.mycompany.quanlysieuthi.modules.report.entity.InventoryReportDetail</class>
+        <class>com.mycompany.quanlysieuthi.modules.returnreceipt.entity.ReturnReceipt</class>
 
         <properties>
             <!-- Provider -->

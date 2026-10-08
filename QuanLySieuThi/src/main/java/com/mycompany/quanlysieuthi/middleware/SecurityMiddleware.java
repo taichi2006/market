@@ -153,6 +153,16 @@ public class SecurityMiddleware implements Filter {
             return false;
         }
 
+        // 5. Return Receipt Management: STORE_OWNER or CASHIER
+        if (uri.contains("/api/return-receipt")) {
+            if ("STORE_OWNER".equalsIgnoreCase(position) || "CASHIER".equalsIgnoreCase(position)) {
+                return true;
+            }
+            ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
+                    "Từ chối truy cập: Bạn không có quyền tạo hoặc quản lý phiếu trả hàng.");
+            return false;
+        }
+
         return true;
     }
 
