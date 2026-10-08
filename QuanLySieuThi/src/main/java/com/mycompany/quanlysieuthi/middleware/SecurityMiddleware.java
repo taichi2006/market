@@ -153,6 +153,33 @@ public class SecurityMiddleware implements Filter {
             return false;
         }
 
+        // 5. Product Management: STORE_OWNER, CASHIER, INVENTORY_MANAGER for GET
+        if (uri.contains("/api/product")) {
+            if ("GET".equalsIgnoreCase(request.getMethod())) {
+                if (uri.contains("/low-stock")) {
+                    if ("STORE_OWNER".equalsIgnoreCase(position) || "INVENTORY_MANAGER".equalsIgnoreCase(position)) {
+                        return true;
+                    }
+                    ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
+                            "Từ chối truy cập: Bạn không có quyền xem cảnh báo tồn kho.");
+                    return false;
+                }
+                if ("STORE_OWNER".equalsIgnoreCase(position) || "CASHIER".equalsIgnoreCase(position) || "INVENTORY_MANAGER".equalsIgnoreCase(position)) {
+                    return true;
+                }
+            } else if ("PATCH".equalsIgnoreCase(request.getMethod())) {
+                if ("STORE_OWNER".equalsIgnoreCase(position) || "INVENTORY_MANAGER".equalsIgnoreCase(position)) {
+                    return true;
+                }
+                ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
+                        "Từ chối truy cập: Người gọi không có quyền cập nhật sản phẩm.");
+                return false;
+            }
+            ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
+                    "Từ chối truy cập: Bạn không có quyền truy cập sản phẩm.");
+            return false;
+        }
+
         return true;
     }
 
