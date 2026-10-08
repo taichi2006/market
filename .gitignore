@@ -10,3 +10,7 @@
 
 # Bỏ qua mọi file bảo mật môi trường
 **/.env
+
+# Bỏ qua thư mục làm việc của Postman
+.postman/
+postman/
