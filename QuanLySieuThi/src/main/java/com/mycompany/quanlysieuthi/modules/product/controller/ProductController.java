@@ -2,6 +2,7 @@ package com.mycompany.quanlysieuthi.modules.product.controller;
 
 import com.mycompany.quanlysieuthi.modules.product.dto.response.ProductResponseDto;
 import com.mycompany.quanlysieuthi.modules.product.service.ProductService;
+import com.mycompany.quanlysieuthi.util.NotFoundException;
 import com.mycompany.quanlysieuthi.util.ResponseUtil;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -14,6 +15,7 @@ import java.util.List;
 /**
  * Controller handling Product endpoints:
  * GET /api/product (or /api/product/)
+ * GET /api/product/:id
  */
 @WebServlet(name = "ProductController", urlPatterns = {"/api/product", "/api/product/*"})
 public class ProductController extends HttpServlet {
@@ -29,7 +31,32 @@ public class ProductController extends HttpServlet {
             return;
         }
 
+        String path = pathInfo.startsWith("/") ? pathInfo.substring(1).trim() : pathInfo.trim();
+        if (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1).trim();
+        }
+
+        String[] segments = path.split("/");
+        if (segments.length == 1 && !segments[0].isEmpty()) {
+            handleGetProductDetail(segments[0], resp);
+            return;
+        }
+
         ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found: " + pathInfo);
+    }
+
+    private void handleGetProductDetail(String id, HttpServletResponse resp) throws IOException {
+        try {
+            ProductResponseDto data = productService.getProductById(id);
+            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Lấy chi tiết sản phẩm thành công", data);
+        } catch (IllegalArgumentException e) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        } catch (NotFoundException e) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
+        } catch (Exception e) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Lỗi hệ thống khi lấy chi tiết sản phẩm: " + e.getMessage());
+        }
     }
 
     private void handleGetProducts(HttpServletRequest req, HttpServletResponse resp) throws IOException {

@@ -7,6 +7,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Data Access Object for Product database operations.
@@ -60,4 +61,24 @@ public class ProductDao {
             em.close();
         }
     }
+
+    public Optional<Object[]> findByIdWithCategory(String productId) {
+        if (productId == null || productId.trim().isEmpty()) {
+            return Optional.empty();
+        }
+        EntityManager em = JpaUtil.getEntityManager();
+        try {
+            String jpql = "SELECT p, c.categoryName " +
+                    "FROM Product p " +
+                    "LEFT JOIN ProductCategory c ON p.categoryId = c.categoryId " +
+                    "WHERE p.productId = :productId";
+            List<Object[]> rows = em.createQuery(jpql, Object[].class)
+                    .setParameter("productId", productId.trim())
+                    .getResultList();
+            return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
+        } finally {
+            em.close();
+        }
+    }
 }
+

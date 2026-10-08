@@ -4,12 +4,15 @@ import com.mycompany.quanlysieuthi.modules.product.dao.ProductDao;
 import com.mycompany.quanlysieuthi.modules.product.dto.response.ProductCategoryDto;
 import com.mycompany.quanlysieuthi.modules.product.dto.response.ProductResponseDto;
 import com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.Product;
+import com.mycompany.quanlysieuthi.util.NotFoundException;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Service handling business logic for Product operations.
@@ -83,6 +86,43 @@ public class ProductService {
         return result;
     }
 
+    public ProductResponseDto getProductById(String id) {
+        if (id == null || id.trim().isEmpty()) {
+            throw new IllegalArgumentException("ID không đúng định dạng UUID.");
+        }
+
+        try {
+            UUID.fromString(id.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("ID không đúng định dạng UUID.");
+        }
+
+        Optional<Object[]> productOpt = productDao.findByIdWithCategory(id.trim());
+        if (productOpt.isEmpty()) {
+            throw new NotFoundException("Không tìm thấy sản phẩm với ID tương ứng.");
+        }
+
+        Object[] row = productOpt.get();
+        Product p = (Product) row[0];
+        String categoryName = (String) row[1];
+
+        ProductCategoryDto categoryDto = new ProductCategoryDto(
+                p.getCategoryId(),
+                categoryName != null ? categoryName : ""
+        );
+
+        String formattedExpirationDate = formatIsoUtc(p.getExpirationDate());
+
+        return new ProductResponseDto(
+                p.getProductId(),
+                p.getProductName(),
+                p.getStockQuantity(),
+                formattedExpirationDate,
+                p.getProductStatus(),
+                categoryDto
+        );
+    }
+
     private String formatIsoUtc(LocalDateTime ldt) {
         if (ldt == null) {
             return null;
@@ -90,3 +130,4 @@ public class ProductService {
         return ldt.atOffset(ZoneOffset.UTC).format(ISO_FORMATTER);
     }
 }
+
