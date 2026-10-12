@@ -1,5 +1,6 @@
 package com.mycompany.quanlysieuthi.modules.customer;
 
+import com.mycompany.quanlysieuthi.entity.Customer;
 import com.mycompany.quanlysieuthi.util.ConflictException;
 import com.mycompany.quanlysieuthi.util.NotFoundException;
 
@@ -9,120 +10,63 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
- * Service handling business logic for Customer operations.
+ * Service handling customer business logic.
  */
 public class CustomerService {
 
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-    private static final Pattern PHONE_PATTERN = Pattern.compile("^[0-9+]{9,15}$");
 
-    private final CustomerDao customerDao;
+    private final CustomerRepository customerRepository;
 
     public CustomerService() {
-        this.customerDao = new CustomerDao();
+        this.customerRepository = new CustomerRepository();
     }
 
-    public CustomerService(CustomerDao customerDao) {
-        this.customerDao = customerDao;
+    public CustomerService(CustomerRepository customerRepository) {
+        this.customerRepository = customerRepository;
     }
 
-    public List<CustomerResponse> getCustomers(Integer pageParam, Integer limitParam, String keyword) {
-        int page = (pageParam != null) ? pageParam : 1;
-        int limit = (limitParam != null) ? limitParam : 10;
-
-        if (page <= 0) {
-            throw new IllegalArgumentException("Tham số page phải lớn hơn 0");
-        }
-        if (limit <= 0) {
-            throw new IllegalArgumentException("Tham số limit phải lớn hơn 0");
-        }
-
-        List<Customer> customers = customerDao.findCustomers(page, limit, keyword);
-        List<CustomerResponse> result = new ArrayList<>();
-
-        for (Customer c : customers) {
-            result.add(mapToResponse(c));
-        }
-
-        return result;
-    }
-
-    public CustomerResponse createCustomer(CreateCustomerRequest request) {
+    /**
+     * Tạo khách hàng mới (hoặc đăng ký thành viên).
+     */
+    public CustomerResponse createCustomer(CustomerRequest.Create request) {
         if (request == null) {
             throw new IllegalArgumentException("Dữ liệu khách hàng không được để trống");
         }
-
         if (request.getFullName() == null || request.getFullName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Thiếu fullName hoặc phoneNumber; Số điện thoại không đúng định dạng.");
+            throw new IllegalArgumentException("Họ và tên khách hàng không được để trống");
         }
-
         if (request.getPhoneNumber() == null || request.getPhoneNumber().trim().isEmpty()) {
-            throw new IllegalArgumentException("Thiếu fullName hoặc phoneNumber; Số điện thoại không đúng định dạng.");
+            throw new IllegalArgumentException("Số điện thoại khách hàng không được để trống");
         }
 
-        String phoneNumber = request.getPhoneNumber().trim();
-        if (!PHONE_PATTERN.matcher(phoneNumber).matches()) {
-            throw new IllegalArgumentException("Thiếu fullName hoặc phoneNumber; Số điện thoại không đúng định dạng.");
+        String phone = request.getPhoneNumber().trim();
+        if (customerRepository.existsByPhoneNumber(phone)) {
+            throw new ConflictException("Số điện thoại đã tồn tại trên hệ thống");
         }
 
-        // 409 Conflict: Số điện thoại đã tồn tại
-        if (customerDao.existsByPhoneNumber(phoneNumber)) {
-            throw new ConflictException("Số điện thoại (phoneNumber) này đã được đăng ký thành viên trước đó.");
-        }
+        Customer customer = new Customer();
+        customer.setCustomerId(UUID.randomUUID().toString());
+        customer.setFullName(request.getFullName().trim());
+        customer.setPhoneNumber(phone);
+        customer.setEmail((request.getEmail() != null && !request.getEmail().trim().isEmpty())
+                ? request.getEmail().trim() : null);
+        customer.setLoyaltyPoints(0);
+        customer.setCreatedAt(LocalDateTime.now());
 
-        String customerId = UUID.randomUUID().toString();
-        LocalDateTime now = LocalDateTime.now();
-        String email = (request.getEmail() != null && !request.getEmail().trim().isEmpty())
-                ? request.getEmail().trim()
-                : null;
-
-        Customer customer = new Customer(
-                customerId,
-                request.getFullName().trim(),
-                phoneNumber,
-                email,
-                0, // loyaltyPoints default = 0
-                now
-        );
-
-        Customer saved = customerDao.save(customer);
-        return mapToResponse(saved);
+        Customer saved = customerRepository.save(customer);
+        return toCustomerResponse(saved);
     }
 
-    public CustomerResponse getCustomerDetail(String customerId) {
-        if (customerId == null || customerId.trim().isEmpty()) {
-            throw new IllegalArgumentException("ID khách hàng không được để trống");
-        }
-
-        Customer customer = customerDao.findById(customerId.trim())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy khách hàng với ID tương ứng: " + customerId.trim()));
-
-        return mapToResponse(customer);
-    }
-
-    public List<CustomerInvoiceHistoryDto> getCustomerInvoices(String customerId,
-                                                               Integer pageParam,
-                                                               Integer limitParam,
-                                                               String status,
-                                                               String fromDateStr,
-                                                               String toDateStr) {
-        if (customerId == null || customerId.trim().isEmpty()) {
-            throw new IllegalArgumentException("ID khách hàng không được để trống");
-        }
-
-        // 404 Not Found nếu khách hàng không tồn tại
-        customerDao.findById(customerId.trim())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy khách hàng với ID tương ứng: " + customerId.trim()));
-
-        int page = (pageParam != null) ? pageParam : 1;
-        int limit = (limitParam != null) ? limitParam : 10;
-
+    /**
+     * Lấy danh sách khách hàng (tìm kiếm theo keyword + phân trang).
+     */
+    public List<CustomerResponse> getCustomers(int page, int limit, String keyword) {
         if (page <= 0) {
             throw new IllegalArgumentException("Tham số page phải lớn hơn 0");
         }
@@ -130,12 +74,32 @@ public class CustomerService {
             throw new IllegalArgumentException("Tham số limit phải lớn hơn 0");
         }
 
-        if (status != null && !status.trim().isEmpty()) {
-            String upperStatus = status.trim().toUpperCase();
-            if (!upperStatus.equals("PENDING") && !upperStatus.equals("PAID") && !upperStatus.equals("CANCELLED")) {
-                throw new IllegalArgumentException("Trạng thái status không hợp lệ (phải là PENDING, PAID hoặc CANCELLED)");
-            }
+        List<Customer> list = customerRepository.findCustomers(page, limit, keyword);
+        return list.stream().map(this::toCustomerResponse).collect(Collectors.toList());
+    }
+
+    /**
+     * Lấy lịch sử mua hàng (danh sách hóa đơn) của khách hàng.
+     */
+    public List<CustomerResponse.InvoiceHistoryDto> getCustomerInvoices(String customerId,
+                                                                       int page,
+                                                                       int limit,
+                                                                       String status,
+                                                                       String fromDateStr,
+                                                                       String toDateStr) {
+        if (customerId == null || customerId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã khách hàng không được để trống");
         }
+        if (page <= 0) {
+            throw new IllegalArgumentException("Tham số page phải lớn hơn 0");
+        }
+        if (limit <= 0) {
+            throw new IllegalArgumentException("Tham số limit phải lớn hơn 0");
+        }
+
+        // Kiểm tra khách hàng có tồn tại không
+        customerRepository.findById(customerId.trim())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy khách hàng với ID: " + customerId.trim()));
 
         LocalDateTime fromDateTime = null;
         LocalDateTime toDateTime = null;
@@ -145,7 +109,7 @@ public class CustomerService {
                 LocalDate fromDate = LocalDate.parse(fromDateStr.trim());
                 fromDateTime = fromDate.atStartOfDay();
             } catch (DateTimeParseException e) {
-                throw new IllegalArgumentException("Định dạng ngày tháng fromDate không hợp lệ (yêu cầu YYYY-MM-DD)");
+                throw new IllegalArgumentException("fromDate không đúng định dạng YYYY-MM-DD");
             }
         }
 
@@ -154,7 +118,7 @@ public class CustomerService {
                 LocalDate toDate = LocalDate.parse(toDateStr.trim());
                 toDateTime = toDate.atTime(LocalTime.MAX);
             } catch (DateTimeParseException e) {
-                throw new IllegalArgumentException("Định dạng ngày tháng toDate không hợp lệ (yêu cầu YYYY-MM-DD)");
+                throw new IllegalArgumentException("toDate không đúng định dạng YYYY-MM-DD");
             }
         }
 
@@ -162,21 +126,24 @@ public class CustomerService {
             throw new IllegalArgumentException("fromDate không được sau toDate");
         }
 
-        return customerDao.findCustomerInvoices(customerId.trim(), page, limit, status, fromDateTime, toDateTime);
+        return customerRepository.findCustomerInvoices(customerId.trim(), page, limit, status, fromDateTime, toDateTime);
     }
 
-    private CustomerResponse mapToResponse(Customer customer) {
-        String formattedDate = (customer.getCreatedAt() != null)
-                ? customer.getCreatedAt().atOffset(ZoneOffset.UTC).format(ISO_FORMATTER)
-                : null;
-
+    private CustomerResponse toCustomerResponse(Customer customer) {
+        if (customer == null) {
+            return null;
+        }
+        String formattedCreatedAt = null;
+        if (customer.getCreatedAt() != null) {
+            formattedCreatedAt = customer.getCreatedAt().atOffset(ZoneOffset.UTC).format(ISO_FORMATTER);
+        }
         return new CustomerResponse(
                 customer.getCustomerId(),
                 customer.getFullName(),
                 customer.getPhoneNumber(),
                 customer.getEmail(),
                 customer.getLoyaltyPoints(),
-                formattedDate
+                formattedCreatedAt
         );
     }
 }

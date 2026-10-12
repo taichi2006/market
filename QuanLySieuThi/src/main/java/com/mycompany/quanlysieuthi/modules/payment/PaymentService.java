@@ -1,8 +1,10 @@
 package com.mycompany.quanlysieuthi.modules.payment;
 
-import com.mycompany.quanlysieuthi.modules.invoice.Invoice;
-import com.mycompany.quanlysieuthi.modules.payment.dto.*;
+import com.mycompany.quanlysieuthi.entity.Invoice;
+import com.mycompany.quanlysieuthi.entity.Payment;
+import com.mycompany.quanlysieuthi.util.ConflictException;
 import com.mycompany.quanlysieuthi.util.NotFoundException;
+import com.mycompany.quanlysieuthi.util.VnPayUtil;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -11,280 +13,243 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 /**
- * Lớp xử lý nghiệp vụ thanh toán (Service) hỗ trợ tiền mặt (CASH) và cổng VNPay Sandbox.
+ * Service handling business logic for Payment operations.
  */
 public class PaymentService {
 
-    private final PaymentDao paymentDao;
+    private final PaymentRepository paymentRepository;
 
     public PaymentService() {
-        this.paymentDao = new PaymentDao();
+        this.paymentRepository = new PaymentRepository();
     }
 
-    public PaymentService(PaymentDao paymentDao) {
-        this.paymentDao = paymentDao;
+    public PaymentService(PaymentRepository paymentRepository) {
+        this.paymentRepository = paymentRepository;
     }
 
-    /**
-     * Xử lý yêu cầu thanh toán hóa đơn:
-     * - Tiền mặt (CASH): Lưu bản ghi thanh toán PAID và cập nhật trạng thái hóa đơn PAID.
-     * - VNPay (QR / BANK_TRANSFER): Lưu bản ghi UNPAID và sinh đường link thanh toán VNPay Sandbox.
-     *
-     * @param request  Dữ liệu yêu cầu thanh toán (invoiceId, paymentMethod, amount)
-     * @param clientIp Địa chỉ IP của máy khách gửi yêu cầu
-     * @return PaymentCashResponseData (nếu tiền mặt) hoặc PaymentVnpayResponseData (nếu VNPay)
-     */
-    public Object processPayment(PaymentProcessRequest request, String clientIp) {
+    public Object processPayment(PaymentRequest.Process request, String clientIp) {
         if (request == null) {
-            throw new IllegalArgumentException("Request body không được để trống");
+            throw new IllegalArgumentException("Dữ liệu thanh toán không được để trống");
         }
         if (request.getInvoiceId() == null || request.getInvoiceId().trim().isEmpty()) {
-            throw new IllegalArgumentException("invoiceId không được để trống");
+            throw new IllegalArgumentException("Mã hóa đơn (invoiceId) không được để trống");
         }
         if (request.getPaymentMethod() == null || request.getPaymentMethod().trim().isEmpty()) {
-            throw new IllegalArgumentException("paymentMethod không được để trống");
-        }
-        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("amount phải lớn hơn hoặc bằng 0");
+            throw new IllegalArgumentException("Phương thức thanh toán (paymentMethod) không được để trống");
         }
 
         String invoiceId = request.getInvoiceId().trim();
-        Invoice invoice = paymentDao.findInvoiceById(invoiceId)
-                .orElseThrow(() -> new NotFoundException("invoiceId không tồn tại."));
+        String method = request.getPaymentMethod().trim().toUpperCase();
 
-        // Hóa đơn bắt buộc phải ở trạng thái chờ thanh toán (PENDING)
-        if (!"PENDING".equalsIgnoreCase(invoice.getStatus())) {
-            throw new IllegalArgumentException("Hóa đơn không ở trạng thái PENDING.");
+        if (!method.equals("CASH") && !method.equals("QR") && !method.equals("BANK_TRANSFER")) {
+            throw new IllegalArgumentException("Phương thức thanh toán không hợp lệ (hỗ trợ CASH, QR, BANK_TRANSFER)");
         }
 
-        // Kiểm tra số tiền gửi lên phải khớp chính xác với finalAmount của hóa đơn
+        Invoice invoice = paymentRepository.findInvoiceById(invoiceId)
+                .orElseThrow(() -> new NotFoundException("Hóa đơn không tồn tại: " + invoiceId));
+
+        if ("PAID".equalsIgnoreCase(invoice.getStatus())) {
+            throw new ConflictException("Hóa đơn này đã được thanh toán trước đó");
+        }
+        if ("CANCELLED".equalsIgnoreCase(invoice.getStatus())) {
+            throw new IllegalArgumentException("Hóa đơn đã bị hủy, không thể thực hiện thanh toán");
+        }
+
         BigDecimal originalTotal = invoice.getOriginalTotal() != null ? invoice.getOriginalTotal() : BigDecimal.ZERO;
         BigDecimal discountAmount = invoice.getDiscountAmount() != null ? invoice.getDiscountAmount() : BigDecimal.ZERO;
         BigDecimal finalAmount = originalTotal.subtract(discountAmount);
 
-        if (request.getAmount().compareTo(finalAmount) != 0) {
-            throw new IllegalArgumentException("Số tiền thanh toán không khớp với finalAmount của hóa đơn (" + finalAmount + ").");
+        if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
+            finalAmount = BigDecimal.ZERO;
         }
 
-        String method = request.getPaymentMethod().trim().toUpperCase();
+        String transactionId = UUID.randomUUID().toString();
         LocalDateTime now = LocalDateTime.now();
 
-        if ("CASH".equalsIgnoreCase(method)) {
-            // Trường hợp thanh toán Tiền mặt (CASH)
-            String transactionId = UUID.randomUUID().toString();
-            Payment payment = new Payment(
-                    transactionId,
-                    invoice.getInvoiceId(),
-                    request.getAmount(),
-                    "CASH",
-                    "PAID",
-                    now
-            );
-
+        if ("CASH".equals(method)) {
+            Payment payment = new Payment(transactionId, invoiceId, finalAmount, "CASH", "PAID", now);
             invoice.setStatus("PAID");
-            paymentDao.saveCashPaymentTransaction(payment, invoice);
+            paymentRepository.saveCashPaymentTransaction(payment, invoice);
 
-            return new PaymentCashResponseData(
-                    transactionId,
-                    invoice.getInvoiceId(),
-                    "CASH",
-                    "PAID",
-                    request.getAmount(),
-                    formatIso(now)
-            );
-
-        } else if ("QR".equalsIgnoreCase(method) || "BANK_TRANSFER".equalsIgnoreCase(method)) {
-            // Trường hợp thanh toán VNPay Sandbox (QR hoặc chuyển khoản ngân hàng)
-            String transactionId = UUID.randomUUID().toString();
-            Payment payment = new Payment(
-                    transactionId,
-                    invoice.getInvoiceId(),
-                    request.getAmount(),
-                    method,
-                    "UNPAID",
-                    now
-            );
-
-            paymentDao.savePayment(payment);
-
-            // Sinh URL thanh toán có kèm mã băm chữ ký HMAC-SHA512
-            String paymentUrl = VnPayUtil.createPaymentUrl(transactionId, invoice.getInvoiceId(), request.getAmount(), clientIp);
-            return new PaymentVnpayResponseData(method, paymentUrl);
-
+            String timeStr = now.atZone(ZoneId.systemDefault()).toInstant().toString();
+            return new PaymentResponse.CashResponse(transactionId, invoiceId, finalAmount, "CASH", "PAID", timeStr);
         } else {
-            throw new IllegalArgumentException("Phương thức thanh toán không hợp lệ (chỉ hỗ trợ CASH, QR, BANK_TRANSFER).");
+            Payment payment = new Payment(transactionId, invoiceId, finalAmount, method, "UNPAID", now);
+            paymentRepository.savePayment(payment);
+
+            String paymentUrl = VnPayUtil.createPaymentUrl(transactionId, invoiceId, finalAmount, clientIp);
+            return new PaymentResponse.VnpayResponse(transactionId, invoiceId, finalAmount, paymentUrl);
         }
     }
 
-    /**
-     * Tra cứu lịch sử thanh toán và thống kê doanh thu (summary).
-     * Phân quyền: Thu ngân CASHIER chỉ xem ca của mình, Chủ cửa hàng STORE_OWNER xem toàn bộ.
-     */
-    public PaymentHistoryResponseData getPaymentHistory(Integer pageParam,
-                                                        Integer limitParam,
-                                                        String paymentMethod,
-                                                        String status,
-                                                        String fromDateStr,
-                                                        String toDateStr,
-                                                        String currentEmployeeId,
-                                                        String currentPosition) {
-        String cashierEmployeeId = null;
-        if ("CASHIER".equalsIgnoreCase(currentPosition)) {
-            cashierEmployeeId = currentEmployeeId;
-        } else if (!"STORE_OWNER".equalsIgnoreCase(currentPosition)) {
-            throw new SecurityException("Người dùng không có quyền truy cập (ví dụ INVENTORY_MANAGER).");
+    public PaymentResponse.IpnResponse handleVnPayIpn(Map<String, String[]> parameterMap) {
+        if (!VnPayUtil.validateSignature(parameterMap)) {
+            return new PaymentResponse.IpnResponse("97", "Invalid Checksum");
         }
 
-        int page = (pageParam != null && pageParam > 0) ? pageParam : 1;
-        int limit = (limitParam != null && limitParam > 0) ? limitParam : 10;
+        String transactionId = getParam(parameterMap, "vnp_TxnRef");
+        String responseCode = getParam(parameterMap, "vnp_ResponseCode");
 
-        LocalDateTime fromDateTime = parseFromDate(fromDateStr);
-        LocalDateTime toDateTime = parseToDate(toDateStr);
-
-        PaymentSummaryDto summary = paymentDao.getSummary(fromDateTime, toDateTime, cashierEmployeeId);
-        List<PaymentTransactionDto> transactions = paymentDao.findTransactions(
-                page, limit, paymentMethod, status, fromDateTime, toDateTime, cashierEmployeeId
-        );
-
-        return new PaymentHistoryResponseData(summary, transactions);
-    }
-
-    /**
-     * Xử lý webhook ngầm (IPN - Server to Server) từ VNPay gửi sang để cập nhật kết quả giao dịch.
-     */
-    public VnPayIpnResponse processVnPayIpn(Map<String, String[]> parameterMap) {
-        // 1. Kiểm tra tính hợp lệ của chữ ký số
-        boolean isValidSignature = VnPayUtil.validateSignature(parameterMap);
-        if (!isValidSignature) {
-            return new VnPayIpnResponse("97", "Invalid Checksum");
+        if (transactionId == null || transactionId.isEmpty()) {
+            return new PaymentResponse.IpnResponse("01", "Order not found");
         }
 
-        // 2. Kiểm tra mã giao dịch (vnp_TxnRef)
-        String[] txnRefArr = parameterMap.get("vnp_TxnRef");
-        if (txnRefArr == null || txnRefArr.length == 0 || txnRefArr[0].trim().isEmpty()) {
-            return new VnPayIpnResponse("01", "Order not found");
-        }
-        String transactionId = txnRefArr[0].trim();
-
-        Optional<Payment> paymentOpt = paymentDao.findPaymentByTransactionId(transactionId);
+        Optional<Payment> paymentOpt = paymentRepository.findPaymentByTransactionId(transactionId);
         if (paymentOpt.isEmpty()) {
-            return new VnPayIpnResponse("01", "Order not found");
+            return new PaymentResponse.IpnResponse("01", "Order not found");
         }
 
         Payment payment = paymentOpt.get();
 
-        // 3. Kiểm tra số tiền thanh toán (vnp_Amount)
-        String[] amountArr = parameterMap.get("vnp_Amount");
-        long receivedAmount = 0;
-        try {
-            if (amountArr != null && amountArr.length > 0) {
-                receivedAmount = Long.parseLong(amountArr[0]);
-            }
-        } catch (NumberFormatException e) {
-            return new VnPayIpnResponse("04", "Invalid Amount");
-        }
-
-        long expectedAmount = payment.getAmount().multiply(BigDecimal.valueOf(100)).longValue();
-        if (receivedAmount != expectedAmount) {
-            return new VnPayIpnResponse("04", "Invalid Amount");
-        }
-
-        // 4. Kiểm tra đơn hàng đã được chốt thanh toán trước đó chưa
         if ("PAID".equalsIgnoreCase(payment.getStatus())) {
-            return new VnPayIpnResponse("02", "Order already confirmed");
+            return new PaymentResponse.IpnResponse("02", "Order already confirmed");
         }
 
-        // 5. Cập nhật trạng thái theo mã phản hồi VNPay ("00" là thành công)
-        String[] respCodeArr = parameterMap.get("vnp_ResponseCode");
-        String respCode = (respCodeArr != null && respCodeArr.length > 0) ? respCodeArr[0] : "";
-
-        if ("00".equals(respCode)) {
-            paymentDao.updatePaymentAndInvoiceStatus(transactionId, "PAID", "PAID");
+        if ("00".equals(responseCode)) {
+            paymentRepository.updatePaymentAndInvoiceStatus(transactionId, "PAID", "PAID");
+            return new PaymentResponse.IpnResponse("00", "Confirm Success");
         } else {
-            paymentDao.updatePaymentAndInvoiceStatus(transactionId, "FAILED", "PENDING");
+            paymentRepository.updatePaymentAndInvoiceStatus(transactionId, "FAILED", "PENDING");
+            return new PaymentResponse.IpnResponse("00", "Payment Failed Recorded");
         }
-
-        return new VnPayIpnResponse("00", "Confirm Success");
     }
 
-    /**
-     * Xử lý khi trình duyệt người dùng được redirect về trang Return URL sau khi hoàn tất thanh toán trên VNPay.
-     */
-    public PaymentCashResponseData processVnPayReturn(Map<String, String[]> parameterMap) {
-        boolean isValidSignature = VnPayUtil.validateSignature(parameterMap);
-        if (!isValidSignature) {
-            throw new SecurityException("Chữ ký VNPay không hợp lệ (Checksum failed)");
+    public boolean handleVnPayReturn(Map<String, String[]> parameterMap) {
+        boolean valid = VnPayUtil.validateSignature(parameterMap);
+        if (!valid) {
+            return false;
         }
 
-        String[] txnRefArr = parameterMap.get("vnp_TxnRef");
-        if (txnRefArr == null || txnRefArr.length == 0 || txnRefArr[0].trim().isEmpty()) {
-            throw new NotFoundException("Không tìm thấy mã giao dịch vnp_TxnRef.");
-        }
-        String transactionId = txnRefArr[0].trim();
+        String transactionId = getParam(parameterMap, "vnp_TxnRef");
+        String responseCode = getParam(parameterMap, "vnp_ResponseCode");
 
-        Payment payment = paymentDao.findPaymentByTransactionId(transactionId)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy giao dịch: " + transactionId));
-
-        String[] respCodeArr = parameterMap.get("vnp_ResponseCode");
-        String respCode = (respCodeArr != null && respCodeArr.length > 0) ? respCodeArr[0] : "";
-
-        if ("00".equals(respCode)) {
-            if (!"PAID".equalsIgnoreCase(payment.getStatus())) {
-                paymentDao.updatePaymentAndInvoiceStatus(transactionId, "PAID", "PAID");
-                payment.setStatus("PAID");
-            }
-        } else {
-            if (!"FAILED".equalsIgnoreCase(payment.getStatus())) {
-                paymentDao.updatePaymentAndInvoiceStatus(transactionId, "FAILED", "PENDING");
-                payment.setStatus("FAILED");
+        if (transactionId != null && !transactionId.isEmpty()) {
+            if ("00".equals(responseCode)) {
+                paymentRepository.updatePaymentAndInvoiceStatus(transactionId, "PAID", "PAID");
+                return true;
+            } else {
+                paymentRepository.updatePaymentAndInvoiceStatus(transactionId, "FAILED", "PENDING");
+                return false;
             }
         }
+        return false;
+    }
 
-        LocalDateTime time = payment.getPaymentTime() != null ? payment.getPaymentTime() : LocalDateTime.now();
-        return new PaymentCashResponseData(
-                payment.getTransactionId(),
-                payment.getInvoiceId(),
-                payment.getPaymentMethod(),
-                payment.getStatus(),
-                payment.getAmount(),
-                formatIso(time)
+    public List<PaymentResponse.TransactionDto> getTransactions(int page, int limit,
+                                                                String paymentMethod,
+                                                                String status,
+                                                                String fromDateStr,
+                                                                String toDateStr,
+                                                                String currentEmployeeId,
+                                                                String currentRole) {
+        if (page <= 0) {
+            throw new IllegalArgumentException("Tham số page phải lớn hơn 0");
+        }
+        if (limit <= 0) {
+            throw new IllegalArgumentException("Tham số limit phải lớn hơn 0");
+        }
+
+        LocalDateTime fromDateTime = parseFromDate(fromDateStr);
+        LocalDateTime toDateTime = parseToDate(toDateStr);
+
+        if (fromDateTime != null && toDateTime != null && fromDateTime.isAfter(toDateTime)) {
+            throw new IllegalArgumentException("fromDate không được sau toDate");
+        }
+
+        String cashierIdFilter = null;
+        if ("CASHIER".equalsIgnoreCase(currentRole)) {
+            cashierIdFilter = currentEmployeeId;
+        }
+
+        return paymentRepository.findTransactions(page, limit, paymentMethod, status, fromDateTime, toDateTime, cashierIdFilter);
+    }
+
+    public PaymentResponse.SummaryDto getSummary(String fromDateStr,
+                                                 String toDateStr,
+                                                 String currentEmployeeId,
+                                                 String currentRole) {
+        LocalDateTime fromDateTime = parseFromDate(fromDateStr);
+        LocalDateTime toDateTime = parseToDate(toDateStr);
+
+        if (fromDateTime != null && toDateTime != null && fromDateTime.isAfter(toDateTime)) {
+            throw new IllegalArgumentException("fromDate không được sau toDate");
+        }
+
+        String cashierIdFilter = null;
+        if ("CASHIER".equalsIgnoreCase(currentRole)) {
+            cashierIdFilter = currentEmployeeId;
+        }
+
+        return paymentRepository.getSummary(fromDateTime, toDateTime, cashierIdFilter);
+    }
+
+    public PaymentResponse.HistoryResponse getInvoicePaymentHistory(String invoiceId) {
+        if (invoiceId == null || invoiceId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã hóa đơn không được để trống");
+        }
+
+        Invoice invoice = paymentRepository.findInvoiceById(invoiceId.trim())
+                .orElseThrow(() -> new NotFoundException("Hóa đơn không tồn tại: " + invoiceId));
+
+        BigDecimal originalTotal = invoice.getOriginalTotal() != null ? invoice.getOriginalTotal() : BigDecimal.ZERO;
+        BigDecimal discountAmount = invoice.getDiscountAmount() != null ? invoice.getDiscountAmount() : BigDecimal.ZERO;
+        BigDecimal finalAmount = originalTotal.subtract(discountAmount);
+        if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
+            finalAmount = BigDecimal.ZERO;
+        }
+
+        List<PaymentResponse.TransactionDto> transactions = paymentRepository.findTransactions(
+                1, 100, null, null, null, null, null
         );
+
+        List<PaymentResponse.TransactionDto> invoiceTxs = new ArrayList<>();
+        BigDecimal totalPaid = BigDecimal.ZERO;
+
+        for (PaymentResponse.TransactionDto tx : transactions) {
+            if (invoiceId.trim().equalsIgnoreCase(tx.getInvoiceId())) {
+                invoiceTxs.add(tx);
+                if ("PAID".equalsIgnoreCase(tx.getStatus())) {
+                    totalPaid = totalPaid.add(tx.getAmount());
+                }
+            }
+        }
+
+        BigDecimal remaining = finalAmount.subtract(totalPaid);
+        if (remaining.compareTo(BigDecimal.ZERO) < 0) {
+            remaining = BigDecimal.ZERO;
+        }
+
+        PaymentResponse.SummaryDto summary = new PaymentResponse.SummaryDto(
+                originalTotal, discountAmount, finalAmount, totalPaid, remaining
+        );
+
+        return new PaymentResponse.HistoryResponse(invoiceId, invoice.getStatus(), summary, invoiceTxs);
     }
 
-    private LocalDateTime parseFromDate(String dateStr) {
-        if (dateStr == null || dateStr.trim().isEmpty()) {
-            return null;
-        }
+    private static String getParam(Map<String, String[]> map, String key) {
+        if (map == null) return null;
+        String[] vals = map.get(key);
+        return (vals != null && vals.length > 0) ? vals[0] : null;
+    }
+
+    private static LocalDateTime parseFromDate(String str) {
+        if (str == null || str.trim().isEmpty()) return null;
         try {
-            LocalDate date = LocalDate.parse(dateStr.trim(), DateTimeFormatter.ISO_LOCAL_DATE);
-            return date.atStartOfDay();
+            return LocalDate.parse(str.trim()).atStartOfDay();
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("Định dạng ngày bắt đầu không hợp lệ (YYYY-MM-DD): " + dateStr);
+            throw new IllegalArgumentException("Định dạng fromDate không hợp lệ (yêu cầu YYYY-MM-DD)");
         }
     }
 
-    private LocalDateTime parseToDate(String dateStr) {
-        if (dateStr == null || dateStr.trim().isEmpty()) {
-            return null;
-        }
+    private static LocalDateTime parseToDate(String str) {
+        if (str == null || str.trim().isEmpty()) return null;
         try {
-            LocalDate date = LocalDate.parse(dateStr.trim(), DateTimeFormatter.ISO_LOCAL_DATE);
-            return date.atTime(LocalTime.MAX);
+            return LocalDate.parse(str.trim()).atTime(LocalTime.MAX);
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("Định dạng ngày kết thúc không hợp lệ (YYYY-MM-DD): " + dateStr);
+            throw new IllegalArgumentException("Định dạng toDate không hợp lệ (yêu cầu YYYY-MM-DD)");
         }
-    }
-
-    private String formatIso(LocalDateTime dateTime) {
-        if (dateTime == null) {
-            return null;
-        }
-        return dateTime.atZone(ZoneId.systemDefault()).toInstant().toString();
     }
 }

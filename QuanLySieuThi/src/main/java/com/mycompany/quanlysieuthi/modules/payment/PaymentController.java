@@ -2,7 +2,8 @@ package com.mycompany.quanlysieuthi.modules.payment;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
-import com.mycompany.quanlysieuthi.modules.payment.dto.*;
+import com.mycompany.quanlysieuthi.common.util.RequestUtil;
+import com.mycompany.quanlysieuthi.util.ConflictException;
 import com.mycompany.quanlysieuthi.util.NotFoundException;
 import com.mycompany.quanlysieuthi.util.ResponseUtil;
 import io.jsonwebtoken.Claims;
@@ -12,15 +13,18 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
- * Controller xử lý các yêu cầu HTTP liên quan đến thanh toán hóa đơn:
- * POST /api/payment/process       - Thực hiện thanh toán (Tiền mặt hoặc sinh link VNPay)
- * GET  /api/payment               - Xem lịch sử giao dịch và thống kê doanh thu
- * GET  /api/payment/vnpay-return  - Nhận redirect trả về từ cổng VNPay cho trình duyệt khách hàng
- * GET  /api/payment/vnpay-ipn     - Webhook IPN nhận kết quả server-to-server từ VNPay
+ * Controller handling payment endpoints:
+ * 1. POST /api/payment/process
+ * 2. GET  /api/payment/vnpay-ipn
+ * 3. GET  /api/payment/vnpay-return
+ * 4. GET  /api/payment/transactions
+ * 5. GET  /api/payment/summary
+ * 6. GET  /api/payment/history/:invoiceId
  */
-@WebServlet(name = "PaymentController", urlPatterns = {"/api/payment", "/api/payment/*"})
+@WebServlet(name = "PaymentController", urlPatterns = {"/api/payment/*", "/api/payment"})
 public class PaymentController extends HttpServlet {
 
     private final PaymentService paymentService = new PaymentService();
@@ -29,8 +33,13 @@ public class PaymentController extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String pathInfo = req.getPathInfo();
-        if (pathInfo != null && (pathInfo.equals("/process") || pathInfo.equals("/process/"))) {
-            xuLyThanhToan(req, resp);
+        if (pathInfo == null) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found");
+            return;
+        }
+
+        if ("/process".equalsIgnoreCase(pathInfo)) {
+            handleProcessPayment(req, resp);
         } else {
             ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found: " + pathInfo);
         }
@@ -39,145 +48,136 @@ public class PaymentController extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String pathInfo = req.getPathInfo();
+        if (pathInfo == null) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found");
+            return;
+        }
 
-        if (pathInfo == null || pathInfo.isEmpty() || pathInfo.equals("/")) {
-            layLichSuThanhToan(req, resp);
-        } else if (pathInfo.equals("/vnpay-return") || pathInfo.equals("/vnpay-return/")) {
-            xuLyKetQuaVnPayReturn(req, resp);
-        } else if (pathInfo.equals("/vnpay-ipn") || pathInfo.equals("/vnpay-ipn/")) {
-            xuLyWebhookVnPayIpn(req, resp);
+        if ("/vnpay-ipn".equalsIgnoreCase(pathInfo)) {
+            handleVnPayIpn(req, resp);
+        } else if ("/vnpay-return".equalsIgnoreCase(pathInfo)) {
+            handleVnPayReturn(req, resp);
+        } else if ("/transactions".equalsIgnoreCase(pathInfo)) {
+            handleGetTransactions(req, resp);
+        } else if ("/summary".equalsIgnoreCase(pathInfo)) {
+            handleGetSummary(req, resp);
+        } else if (pathInfo.startsWith("/history/")) {
+            String invoiceId = pathInfo.substring("/history/".length()).trim();
+            handleGetHistory(invoiceId, resp);
         } else {
             ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found: " + pathInfo);
         }
     }
 
-    /**
-     * Tiếp nhận và xử lý yêu cầu thanh toán (POST /api/payment/process).
-     */
-    private void xuLyThanhToan(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    private void handleProcessPayment(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
-            PaymentProcessRequest requestDto = gson.fromJson(req.getReader(), PaymentProcessRequest.class);
+            PaymentRequest.Process requestDto = RequestUtil.parseJson(req, PaymentRequest.Process.class);
             if (requestDto == null) {
                 ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Request body không được để trống");
                 return;
             }
 
-            // Lấy địa chỉ IP của client gửi yêu cầu
-            String clientIp = req.getRemoteAddr();
-            String forwardedFor = req.getHeader("X-Forwarded-For");
-            if (forwardedFor != null && !forwardedFor.trim().isEmpty()) {
-                clientIp = forwardedFor.split(",")[0].trim();
-            }
-
+            String clientIp = RequestUtil.extractClientIp(req);
             Object result = paymentService.processPayment(requestDto, clientIp);
-            if (result instanceof PaymentCashResponseData) {
-                ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Thanh toán thành công", result);
-            } else {
-                ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Tạo đường dẫn thanh toán VNPay thành công", result);
-            }
+
+            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Khởi tạo thanh toán thành công", result);
 
         } catch (JsonSyntaxException e) {
             ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Malformed JSON payload: " + e.getMessage());
+        } catch (ConflictException e) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_CONFLICT, e.getMessage());
         } catch (NotFoundException e) {
             ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
         } catch (IllegalArgumentException e) {
             ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-        } catch (SecurityException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
         } catch (Exception e) {
             ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Lỗi hệ thống khi xử lý thanh toán: " + e.getMessage());
         }
     }
 
-    /**
-     * Lấy lịch sử giao dịch thanh toán và thống kê doanh thu (GET /api/payment).
-     */
-    private void layLichSuThanhToan(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    private void handleVnPayIpn(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        resp.setContentType("application/json;charset=UTF-8");
+        PaymentResponse.IpnResponse ipnResponse = paymentService.handleVnPayIpn(req.getParameterMap());
+        resp.getWriter().write(gson.toJson(ipnResponse));
+    }
+
+    private void handleVnPayReturn(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        boolean success = paymentService.handleVnPayReturn(req.getParameterMap());
+        String transactionId = req.getParameter("vnp_TxnRef");
+        String responseCode = req.getParameter("vnp_ResponseCode");
+
+        if (success) {
+            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK,
+                    "Thanh toán trực tuyến VNPay thành công (TxnRef: " + transactionId + ")");
+        } else {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST,
+                    "Giao dịch thanh toán không thành công hoặc chữ ký không hợp lệ (Mã phản hồi: " + responseCode + ")");
+        }
+    }
+
+    private void handleGetTransactions(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
-            Integer page = null;
-            Integer limit = null;
-
-            String pageStr = req.getParameter("page");
-            if (pageStr != null && !pageStr.trim().isEmpty()) {
-                try {
-                    page = Integer.parseInt(pageStr.trim());
-                } catch (NumberFormatException e) {
-                    ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Tham số page phải là số nguyên");
-                    return;
-                }
-            }
-
-            String limitStr = req.getParameter("limit");
-            if (limitStr != null && !limitStr.trim().isEmpty()) {
-                try {
-                    limit = Integer.parseInt(limitStr.trim());
-                } catch (NumberFormatException e) {
-                    ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Tham số limit phải là số nguyên");
-                    return;
-                }
-            }
-
+            int page = RequestUtil.parsePage(req);
+            int limit = RequestUtil.parseLimit(req);
             String paymentMethod = req.getParameter("paymentMethod");
             String status = req.getParameter("status");
             String fromDate = req.getParameter("fromDate");
             String toDate = req.getParameter("toDate");
 
-            // Lấy thông tin tài khoản đang đăng nhập từ Claims token JWT
             Claims claims = (Claims) req.getAttribute("currentUser");
-            String employeeId = claims != null ? claims.get("employeeId", String.class) : "";
-            String position = claims != null ? claims.get("position", String.class) : "";
+            String currentEmployeeId = (claims != null) ? claims.get("employeeId", String.class) : null;
+            String currentRole = (claims != null) ? claims.get("position", String.class) : null;
 
-            PaymentHistoryResponseData data = paymentService.getPaymentHistory(
-                    page, limit, paymentMethod, status, fromDate, toDate, employeeId, position
+            List<PaymentResponse.TransactionDto> list = paymentService.getTransactions(
+                    page, limit, paymentMethod, status, fromDate, toDate, currentEmployeeId, currentRole
             );
 
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Lấy lịch sử thanh toán thành công", data);
+            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Lấy danh sách giao dịch thành công", list);
 
         } catch (IllegalArgumentException e) {
             ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-        } catch (SecurityException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
         } catch (Exception e) {
             ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống khi lấy lịch sử thanh toán: " + e.getMessage());
+                    "Lỗi hệ thống khi lấy danh sách giao dịch: " + e.getMessage());
         }
     }
 
-    /**
-     * Nhận callback redirect từ trình duyệt khi khách thanh toán xong trên VNPay (GET /api/payment/vnpay-return).
-     */
-    private void xuLyKetQuaVnPayReturn(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    private void handleGetSummary(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
-            PaymentCashResponseData result = paymentService.processVnPayReturn(req.getParameterMap());
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Kết quả thanh toán VNPay", result);
-        } catch (NotFoundException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
-        } catch (SecurityException e) {
+            String fromDate = req.getParameter("fromDate");
+            String toDate = req.getParameter("toDate");
+
+            Claims claims = (Claims) req.getAttribute("currentUser");
+            String currentEmployeeId = (claims != null) ? claims.get("employeeId", String.class) : null;
+            String currentRole = (claims != null) ? claims.get("position", String.class) : null;
+
+            PaymentResponse.SummaryDto summary = paymentService.getSummary(
+                    fromDate, toDate, currentEmployeeId, currentRole
+            );
+
+            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Lấy thông tin tổng kết doanh thu thành công", summary);
+
+        } catch (IllegalArgumentException e) {
             ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         } catch (Exception e) {
             ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống khi xử lý kết quả VNPay: " + e.getMessage());
+                    "Lỗi hệ thống khi tính tổng kết doanh thu: " + e.getMessage());
         }
     }
 
-    /**
-     * Nhận IPN ngầm từ server VNPay gửi sang (GET /api/payment/vnpay-ipn).
-     */
-    private void xuLyWebhookVnPayIpn(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    private void handleGetHistory(String invoiceId, HttpServletResponse resp) throws IOException {
         try {
-            VnPayIpnResponse ipnResponse = paymentService.processVnPayIpn(req.getParameterMap());
-            resp.setContentType("application/json");
-            resp.setCharacterEncoding("UTF-8");
-            resp.setStatus(HttpServletResponse.SC_OK);
-            resp.getWriter().write(gson.toJson(ipnResponse));
-            resp.getWriter().flush();
+            PaymentResponse.HistoryResponse history = paymentService.getInvoicePaymentHistory(invoiceId);
+            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Lấy lịch sử thanh toán hóa đơn thành công", history);
+
+        } catch (NotFoundException e) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         } catch (Exception e) {
-            resp.setContentType("application/json");
-            resp.setCharacterEncoding("UTF-8");
-            resp.setStatus(HttpServletResponse.SC_OK);
-            resp.getWriter().write(gson.toJson(new VnPayIpnResponse("99", "Lỗi không xác định: " + e.getMessage())));
-            resp.getWriter().flush();
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Lỗi hệ thống khi lấy lịch sử thanh toán hóa đơn: " + e.getMessage());
         }
     }
 }

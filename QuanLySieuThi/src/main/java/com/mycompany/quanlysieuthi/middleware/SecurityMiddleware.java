@@ -93,7 +93,8 @@ public class SecurityMiddleware implements Filter {
         }
         return uri.contains("/api/auth")
                 || uri.contains("/api/payment/vnpay-return")
-                || uri.contains("/api/payment/vnpay-ipn");
+                || uri.contains("/api/payment/vnpay-ipn")
+                || (uri.contains("/api/feedback") && "POST".equalsIgnoreCase(request.getMethod()));
     }
 
     /**
@@ -165,6 +166,16 @@ public class SecurityMiddleware implements Filter {
             }
             ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
                     "Người dùng không có quyền truy cập (ví dụ INVENTORY_MANAGER).");
+            return false;
+        }
+
+        // 6. Feedback View Management: STORE_OWNER only
+        if (uri.contains("/api/feedback")) {
+            if ("STORE_OWNER".equalsIgnoreCase(position)) {
+                return true;
+            }
+            ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
+                    "Người dùng không có quyền xem thông tin đánh giá (chỉ dành cho Chủ cửa hàng).");
             return false;
         }
 

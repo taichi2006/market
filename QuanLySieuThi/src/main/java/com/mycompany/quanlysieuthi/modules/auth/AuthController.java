@@ -1,7 +1,7 @@
 package com.mycompany.quanlysieuthi.modules.auth;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
+import com.mycompany.quanlysieuthi.common.util.RequestUtil;
 import com.mycompany.quanlysieuthi.util.CookieUtil;
 import com.mycompany.quanlysieuthi.util.ResponseUtil;
 import jakarta.servlet.annotation.WebServlet;
@@ -15,7 +15,6 @@ import java.io.IOException;
 public class AuthController extends HttpServlet {
 
     private final AuthService authService = new AuthService();
-    private final Gson gson = new Gson();
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -40,13 +39,13 @@ public class AuthController extends HttpServlet {
 
     private void handleLogin(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
-            LoginRequest loginRequest = gson.fromJson(req.getReader(), LoginRequest.class);
+            AuthRequest.Login loginRequest = RequestUtil.parseJson(req, AuthRequest.Login.class);
             if (loginRequest == null) {
                 ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "thiếu input");
                 return;
             }
 
-            LoginResult result = authService.login(loginRequest);
+            AuthResponse.LoginResult result = authService.login(loginRequest);
 
             // Gửi refreshtoken về trong cookie (HttpOnly)
             CookieUtil.addRefreshTokenCookie(req, resp, result.getRefreshToken());
@@ -76,7 +75,6 @@ public class AuthController extends HttpServlet {
 
             ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Đăng xuất thành công");
         } catch (Exception e) {
-            // Đảm bảo cookie bị xóa ngay cả khi có lỗi DB
             CookieUtil.deleteRefreshTokenCookie(req, resp);
             ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Đăng xuất thành công");
         }
@@ -92,7 +90,7 @@ public class AuthController extends HttpServlet {
             }
 
             String newAccessToken = authService.refresh(refreshToken);
-            RefreshResponseData responseData = new RefreshResponseData(newAccessToken);
+            AuthResponse.RefreshResponseData responseData = new AuthResponse.RefreshResponseData(newAccessToken);
 
             ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, responseData);
 

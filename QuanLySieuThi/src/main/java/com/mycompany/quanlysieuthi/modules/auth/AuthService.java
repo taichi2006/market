@@ -1,7 +1,6 @@
 package com.mycompany.quanlysieuthi.modules.auth;
 
-import com.mycompany.quanlysieuthi.modules.employee.Employee;
-import com.mycompany.quanlysieuthi.modules.employee.EmployeeDao;
+import com.mycompany.quanlysieuthi.entity.Employee;
 import com.mycompany.quanlysieuthi.util.JwtUtil;
 import com.mycompany.quanlysieuthi.util.PasswordUtil;
 
@@ -9,20 +8,20 @@ import java.util.Optional;
 
 public class AuthService {
 
-    private final EmployeeDao employeeDao;
+    private final AuthRepository authRepository;
 
     public AuthService() {
-        this.employeeDao = new EmployeeDao();
+        this.authRepository = new AuthRepository();
     }
 
-    public AuthService(EmployeeDao employeeDao) {
-        this.employeeDao = employeeDao;
+    public AuthService(AuthRepository authRepository) {
+        this.authRepository = authRepository;
     }
 
     /**
      * Authenticate employee credentials and generate tokens.
      */
-    public LoginResult login(LoginRequest request) {
+    public AuthResponse.LoginResult login(AuthRequest.Login request) {
         if (request == null ||
                 request.getUsername() == null || request.getUsername().trim().isEmpty() ||
                 request.getPassword() == null || request.getPassword().trim().isEmpty()) {
@@ -32,7 +31,7 @@ public class AuthService {
         String username = request.getUsername().trim();
         String password = request.getPassword();
 
-        Employee employee = employeeDao.findByUsername(username)
+        Employee employee = authRepository.findByUsername(username)
                 .orElseThrow(() -> new SecurityException("username/password không chính xác"));
 
         if (!PasswordUtil.check(password, employee.getPassword())) {
@@ -58,17 +57,17 @@ public class AuthService {
         );
 
         // Save refresh token to employee record in DB
-        employeeDao.updateRefreshToken(employee.getEmployeeId(), refreshToken);
+        authRepository.updateRefreshToken(employee.getEmployeeId(), refreshToken);
 
-        EmployeeAuthDto employeeDto = new EmployeeAuthDto(
+        AuthResponse.EmployeeAuthDto employeeDto = new AuthResponse.EmployeeAuthDto(
                 employee.getEmployeeId(),
                 employee.getUsername(),
                 employee.getFullName(),
                 employee.getPosition()
         );
 
-        LoginResponseData responseData = new LoginResponseData(accessToken, employeeDto);
-        return new LoginResult(responseData, refreshToken);
+        AuthResponse.LoginResponseData responseData = new AuthResponse.LoginResponseData(accessToken, employeeDto);
+        return new AuthResponse.LoginResult(responseData, refreshToken);
     }
 
     /**
@@ -76,8 +75,8 @@ public class AuthService {
      */
     public void logout(String refreshToken) {
         if (refreshToken != null && !refreshToken.trim().isEmpty()) {
-            Optional<Employee> empOpt = employeeDao.findByRefreshToken(refreshToken.trim());
-            empOpt.ifPresent(employee -> employeeDao.updateRefreshToken(employee.getEmployeeId(), null));
+            Optional<Employee> empOpt = authRepository.findByRefreshToken(refreshToken.trim());
+            empOpt.ifPresent(employee -> authRepository.updateRefreshToken(employee.getEmployeeId(), null));
         }
     }
 
@@ -93,14 +92,13 @@ public class AuthService {
             throw new SecurityException("refreshtoken hết hạn/ không hợp lệ");
         }
 
-        Employee employee = employeeDao.findByRefreshToken(refreshToken.trim())
+        Employee employee = authRepository.findByRefreshToken(refreshToken.trim())
                 .orElseThrow(() -> new SecurityException("refreshtoken hết hạn/ không hợp lệ"));
 
         if (Boolean.FALSE.equals(employee.getStatus())) {
             throw new SecurityException("refreshtoken hết hạn/ không hợp lệ");
         }
 
-        // Return newly generated access token
         return JwtUtil.generateAccessToken(
                 employee.getEmployeeId(),
                 employee.getUsername(),

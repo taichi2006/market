@@ -1,7 +1,7 @@
 package com.mycompany.quanlysieuthi.modules.employee;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
+import com.mycompany.quanlysieuthi.common.util.RequestUtil;
 import com.mycompany.quanlysieuthi.middleware.SecurityMiddleware;
 import com.mycompany.quanlysieuthi.util.ConflictException;
 import com.mycompany.quanlysieuthi.util.ResponseUtil;
@@ -25,7 +25,6 @@ import java.io.IOException;
 public class EmployeeController extends HttpServlet {
 
     private final EmployeeService employeeService = new EmployeeService();
-    private final Gson gson = new Gson();
 
     /**
      * 1. POST /api/employee
@@ -34,7 +33,7 @@ public class EmployeeController extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
-            EmployeeRequest requestDto = gson.fromJson(req.getReader(), EmployeeRequest.class);
+            EmployeeRequest requestDto = RequestUtil.parseJson(req, EmployeeRequest.class);
             if (requestDto == null) {
                 ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Request body không được để trống");
                 return;
@@ -81,28 +80,8 @@ public class EmployeeController extends HttpServlet {
         } else {
             // Endpoint 2: GET /api/employee
             try {
-                Integer page = null;
-                Integer limit = null;
-
-                String pageParam = req.getParameter("page");
-                if (pageParam != null && !pageParam.trim().isEmpty()) {
-                    try {
-                        page = Integer.parseInt(pageParam.trim());
-                    } catch (NumberFormatException e) {
-                        ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Tham số page không hợp lệ.");
-                        return;
-                    }
-                }
-
-                String limitParam = req.getParameter("limit");
-                if (limitParam != null && !limitParam.trim().isEmpty()) {
-                    try {
-                        limit = Integer.parseInt(limitParam.trim());
-                    } catch (NumberFormatException e) {
-                        ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Tham số limit không hợp lệ.");
-                        return;
-                    }
-                }
+                int page = RequestUtil.parsePage(req);
+                int limit = RequestUtil.parseLimit(req);
 
                 String keyword = req.getParameter("keyword");
                 String position = req.getParameter("position");
@@ -113,7 +92,7 @@ public class EmployeeController extends HttpServlet {
                     status = Boolean.parseBoolean(statusParam.trim());
                 }
 
-                EmployeePageResult result = employeeService.getEmployees(page, limit, keyword, position, status);
+                EmployeeResponse.PageResult result = employeeService.getEmployees(page, limit, keyword, position, status);
                 ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Lấy danh sách nhân viên thành công",
                         result.getData(), result.getMeta());
 
@@ -139,7 +118,7 @@ public class EmployeeController extends HttpServlet {
         }
 
         try {
-            EmployeeRequest requestDto = gson.fromJson(req.getReader(), EmployeeRequest.class);
+            EmployeeRequest requestDto = RequestUtil.parseJson(req, EmployeeRequest.class);
             if (requestDto == null) {
                 ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Request body không được để trống");
                 return;
@@ -181,7 +160,7 @@ public class EmployeeController extends HttpServlet {
             Claims claims = (Claims) req.getAttribute("currentUser");
             String currentUserId = (claims != null) ? claims.get("employeeId", String.class) : null;
 
-            EmployeeDeleteResponse result = employeeService.deleteEmployee(targetId, currentUserId);
+            EmployeeResponse.DeleteResult result = employeeService.deleteEmployee(targetId, currentUserId);
             if (result == null) {
                 ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Không tìm thấy nhân viên với ID tương ứng.");
                 return;

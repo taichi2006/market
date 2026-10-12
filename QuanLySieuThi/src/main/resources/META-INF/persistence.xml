@@ -8,20 +8,20 @@
         <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
 
         <!-- Managed Entity Classes -->
-        <class>com.mycompany.quanlysieuthi.modules.employee.Employee</class>
-        <class>com.mycompany.quanlysieuthi.modules.customer.Customer</class>
-        <class>com.mycompany.quanlysieuthi.modules.invoice.Invoice</class>
-        <class>com.mycompany.quanlysieuthi.modules.invoice.InvoiceDetail</class>
-        <class>com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.ProductCategory</class>
-        <class>com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.Product</class>
-        <class>com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.Voucher</class>
-        <class>com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.PurchaseReceipt</class>
-        <class>com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.PurchaseReceiptDetail</class>
-        <class>com.mycompany.quanlysieuthi.modules.report.entity.InventoryReport</class>
-        <class>com.mycompany.quanlysieuthi.modules.report.entity.InventoryReportDetail</class>
-        <class>com.mycompany.quanlysieuthi.modules.payment.Payment</class>
-        <class>com.mycompany.quanlysieuthi.modules.returnreceipt.entity.ReturnReceipt</class>
-        <class>com.mycompany.quanlysieuthi.feedback.Feedback</class>
+        <class>com.mycompany.quanlysieuthi.entity.Employee</class>
+        <class>com.mycompany.quanlysieuthi.entity.Customer</class>
+        <class>com.mycompany.quanlysieuthi.entity.Invoice</class>
+        <class>com.mycompany.quanlysieuthi.entity.InvoiceDetail</class>
+        <class>com.mycompany.quanlysieuthi.entity.ProductCategory</class>
+        <class>com.mycompany.quanlysieuthi.entity.Product</class>
+        <class>com.mycompany.quanlysieuthi.entity.Voucher</class>
+        <class>com.mycompany.quanlysieuthi.entity.PurchaseReceipt</class>
+        <class>com.mycompany.quanlysieuthi.entity.PurchaseReceiptDetail</class>
+        <class>com.mycompany.quanlysieuthi.entity.InventoryReport</class>
+        <class>com.mycompany.quanlysieuthi.entity.InventoryReportDetail</class>
+        <class>com.mycompany.quanlysieuthi.entity.Payment</class>
+        <class>com.mycompany.quanlysieuthi.entity.ReturnReceipt</class>
+        <class>com.mycompany.quanlysieuthi.entity.Feedback</class>
 
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
 
