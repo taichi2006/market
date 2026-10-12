@@ -20,6 +20,8 @@
         <class>com.mycompany.quanlysieuthi.modules.report.entity.InventoryReport</class>
         <class>com.mycompany.quanlysieuthi.modules.report.entity.InventoryReportDetail</class>
         <class>com.mycompany.quanlysieuthi.modules.payment.Payment</class>
+        <class>com.mycompany.quanlysieuthi.modules.returnreceipt.entity.ReturnReceipt</class>
+        <class>com.mycompany.quanlysieuthi.feedback.Feedback</class>
 
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
 

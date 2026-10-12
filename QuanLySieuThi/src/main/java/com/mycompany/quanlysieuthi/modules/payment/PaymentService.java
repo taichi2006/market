@@ -1,6 +1,6 @@
 package com.mycompany.quanlysieuthi.modules.payment;
 
-import com.mycompany.quanlysieuthi.modules.customer.Invoice;
+import com.mycompany.quanlysieuthi.modules.invoice.Invoice;
 import com.mycompany.quanlysieuthi.modules.payment.dto.*;
 import com.mycompany.quanlysieuthi.util.NotFoundException;
 

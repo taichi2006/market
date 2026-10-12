@@ -1,7 +1,7 @@
 package com.mycompany.quanlysieuthi.modules.payment;
 
 import com.mycompany.quanlysieuthi.config.JpaUtil;
-import com.mycompany.quanlysieuthi.modules.customer.Invoice;
+import com.mycompany.quanlysieuthi.modules.invoice.Invoice;
 import com.mycompany.quanlysieuthi.modules.payment.dto.PaymentSummaryDto;
 import com.mycompany.quanlysieuthi.modules.payment.dto.PaymentTransactionDto;
 import jakarta.persistence.EntityManager;

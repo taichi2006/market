@@ -9,7 +9,8 @@ import java.util.Properties;
 
 public final class DatabaseConfig {
 
-    private DatabaseConfig() {}
+    private DatabaseConfig() {
+    }
 
     public static Map<String, Object> buildProperties() {
         Properties env = new Properties();

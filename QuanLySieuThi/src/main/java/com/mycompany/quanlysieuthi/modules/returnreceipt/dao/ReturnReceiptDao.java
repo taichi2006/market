@@ -2,7 +2,7 @@ package com.mycompany.quanlysieuthi.modules.returnreceipt.dao;
 
 import com.mycompany.quanlysieuthi.config.JpaUtil;
 import com.mycompany.quanlysieuthi.modules.customer.Customer;
-import com.mycompany.quanlysieuthi.modules.customer.Invoice;
+import com.mycompany.quanlysieuthi.modules.invoice.Invoice;
 import com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.Product;
 import com.mycompany.quanlysieuthi.modules.returnreceipt.entity.ReturnReceipt;
 import jakarta.persistence.EntityManager;
