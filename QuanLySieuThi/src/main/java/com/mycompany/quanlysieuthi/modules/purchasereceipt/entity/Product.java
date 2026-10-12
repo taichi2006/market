@@ -45,12 +45,7 @@ public class Product implements Serializable {
     }
 
     public Product(String productId, String categoryId, String productName,
-                   Integer stockQuantity, LocalDateTime expirationDate, String productStatus) {
-        this(productId, categoryId, productName, stockQuantity, expirationDate, productStatus, null);
-    }
-
-    public Product(String productId, String categoryId, String productName,
-                   Integer stockQuantity, LocalDateTime expirationDate, String productStatus, BigDecimal unitPrice) {
+            Integer stockQuantity, LocalDateTime expirationDate, String productStatus, BigDecimal unitPrice) {
         this.productId = productId;
         this.categoryId = categoryId;
         this.productName = productName;
@@ -118,8 +113,10 @@ public class Product implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
         Product product = (Product) o;
         return Objects.equals(productId, product.productId);
     }

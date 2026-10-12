@@ -11,17 +11,24 @@ public class PurchaseReceiptItemRequest implements Serializable {
     private String categoryId;
     private Integer purchasedQuantity;
     private BigDecimal purchasePrice;
+    private BigDecimal unitPrice;
     private String expirationDate;
 
     public PurchaseReceiptItemRequest() {
     }
 
     public PurchaseReceiptItemRequest(String productName, String categoryId, Integer purchasedQuantity,
-                                      BigDecimal purchasePrice, String expirationDate) {
+            BigDecimal purchasePrice, String expirationDate) {
+        this(productName, categoryId, purchasedQuantity, purchasePrice, null, expirationDate);
+    }
+
+    public PurchaseReceiptItemRequest(String productName, String categoryId, Integer purchasedQuantity,
+            BigDecimal purchasePrice, BigDecimal unitPrice, String expirationDate) {
         this.productName = productName;
         this.categoryId = categoryId;
         this.purchasedQuantity = purchasedQuantity;
         this.purchasePrice = purchasePrice;
+        this.unitPrice = unitPrice;
         this.expirationDate = expirationDate;
     }
 
@@ -55,6 +62,14 @@ public class PurchaseReceiptItemRequest implements Serializable {
 
     public void setPurchasePrice(BigDecimal purchasePrice) {
         this.purchasePrice = purchasePrice;
+    }
+
+    public BigDecimal getUnitPrice() {
+        return unitPrice;
+    }
+
+    public void setUnitPrice(BigDecimal unitPrice) {
+        this.unitPrice = unitPrice;
     }
 
     public String getExpirationDate() {

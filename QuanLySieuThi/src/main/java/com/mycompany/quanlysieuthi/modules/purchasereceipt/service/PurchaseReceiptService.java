@@ -78,6 +78,9 @@ public class PurchaseReceiptService {
             if (item.getPurchasePrice() == null || item.getPurchasePrice().compareTo(BigDecimal.ZERO) <= 0) {
                 throw new IllegalArgumentException("purchasePrice phải lớn hơn 0");
             }
+            if (item.getUnitPrice() == null || item.getUnitPrice().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Thiếu đơn giá sản phẩm (unitPrice) hoặc unitPrice phải lớn hơn 0");
+            }
             if (item.getExpirationDate() == null || item.getExpirationDate().trim().isEmpty()) {
                 throw new IllegalArgumentException("Thiếu ngày hết hạn (expirationDate)");
             }
@@ -104,7 +107,8 @@ public class PurchaseReceiptService {
                     item.getProductName().trim(),
                     item.getPurchasedQuantity(),
                     expDate,
-                    "ON_SALE");
+                    "ON_SALE",
+                    item.getUnitPrice());
             products.add(product);
 
             PurchaseReceiptDetail detail = new PurchaseReceiptDetail(
@@ -120,7 +124,7 @@ public class PurchaseReceiptService {
                     productId,
                     product.getProductName(),
                     product.getStockQuantity(),
-                    item.getPurchasePrice(),
+                    item.getUnitPrice(),
                     formatIso(expDate)));
         }
 
