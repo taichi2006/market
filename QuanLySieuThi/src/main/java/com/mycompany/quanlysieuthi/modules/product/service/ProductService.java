@@ -16,7 +16,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Service handling business logic for Product operations.
@@ -93,13 +92,7 @@ public class ProductService {
 
     public ProductResponseDto getProductById(String id) {
         if (id == null || id.trim().isEmpty()) {
-            throw new IllegalArgumentException("ID không đúng định dạng UUID.");
-        }
-
-        try {
-            UUID.fromString(id.trim());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("ID không đúng định dạng UUID.");
+            throw new IllegalArgumentException("ID sản phẩm không được để trống.");
         }
 
         Optional<Object[]> productOpt = productDao.findByIdWithCategory(id.trim());
@@ -131,13 +124,7 @@ public class ProductService {
 
     public UpdateProductResponseDto updateProduct(String id, UpdateProductRequest request) {
         if (id == null || id.trim().isEmpty()) {
-            throw new IllegalArgumentException("ID không đúng định dạng UUID.");
-        }
-
-        try {
-            UUID.fromString(id.trim());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("ID không đúng định dạng UUID.");
+            throw new IllegalArgumentException("ID sản phẩm không được để trống.");
         }
 
         if (request == null) {
@@ -166,12 +153,6 @@ public class ProductService {
 
         if (request.getCategoryId() != null && !request.getCategoryId().trim().isEmpty()) {
             String categoryId = request.getCategoryId().trim();
-            try {
-                UUID.fromString(categoryId);
-            } catch (IllegalArgumentException e) {
-                throw new NotFoundException("Không tìm thấy productId hoặc categoryId không tồn tại.");
-            }
-
             if (!productDao.existsCategoryById(categoryId)) {
                 throw new NotFoundException("Không tìm thấy productId hoặc categoryId không tồn tại.");
             }
