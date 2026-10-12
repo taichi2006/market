@@ -1,4 +1,4 @@
-package com.mycompany.quanlysieuthi.modules.customer;
+package com.mycompany.quanlysieuthi.modules.invoice;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
