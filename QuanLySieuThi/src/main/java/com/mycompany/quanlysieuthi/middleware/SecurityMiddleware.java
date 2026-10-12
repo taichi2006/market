@@ -153,6 +153,16 @@ public class SecurityMiddleware implements Filter {
             return false;
         }
 
+        // 5. Invoice Management: STORE_OWNER or CASHIER
+        if (uri.contains("/api/invoice")) {
+            if ("STORE_OWNER".equalsIgnoreCase(position) || "CASHIER".equalsIgnoreCase(position)) {
+                return true;
+            }
+            ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
+                    "Từ chối truy cập: Bạn không có quyền quản lý hóa đơn.");
+            return false;
+        }
+
         return true;
     }
 

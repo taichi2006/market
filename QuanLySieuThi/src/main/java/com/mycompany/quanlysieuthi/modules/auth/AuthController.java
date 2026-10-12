@@ -11,7 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 
-@WebServlet(name = "AuthController", urlPatterns = {"/api/auth/*"})
+@WebServlet(name = "AuthController", urlPatterns = { "/api/auth/*" })
 public class AuthController extends HttpServlet {
 
     private final AuthService authService = new AuthService();

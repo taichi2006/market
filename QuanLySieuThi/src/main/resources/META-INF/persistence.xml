@@ -10,7 +10,8 @@
         <!-- Managed Entity Classes -->
         <class>com.mycompany.quanlysieuthi.modules.employee.Employee</class>
         <class>com.mycompany.quanlysieuthi.modules.customer.Customer</class>
-        <class>com.mycompany.quanlysieuthi.modules.customer.Invoice</class>
+        <class>com.mycompany.quanlysieuthi.modules.invoice.Invoice</class>
+        <class>com.mycompany.quanlysieuthi.modules.invoice.InvoiceDetail</class>
         <class>com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.ProductCategory</class>
         <class>com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.Product</class>
         <class>com.mycompany.quanlysieuthi.modules.purchasereceipt.entity.Voucher</class>
