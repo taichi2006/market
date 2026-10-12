@@ -1,7 +1,7 @@
 package com.mycompany.quanlysieuthi.modules.returnreceipt.service;
 
 import com.mycompany.quanlysieuthi.modules.customer.Customer;
-import com.mycompany.quanlysieuthi.modules.customer.Invoice;
+import com.mycompany.quanlysieuthi.modules.invoice.Invoice;
 import com.mycompany.quanlysieuthi.modules.returnreceipt.dao.ReturnReceiptDao;
 import com.mycompany.quanlysieuthi.modules.returnreceipt.dto.request.ReturnReceiptItemRequest;
 import com.mycompany.quanlysieuthi.modules.returnreceipt.dto.request.ReturnReceiptRequest;
