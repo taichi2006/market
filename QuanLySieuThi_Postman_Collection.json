@@ -1,0 +1,1030 @@
+{
+  "info": {
+    "_postman_id": "a98c56e2-28e1-45a0-9c44-e91b490d1f11",
+    "name": "QuanLySieuThi API - Full Rule & RBAC Tests (Neon DB Data)",
+    "description": "Bộ Postman Collection kiểm thử toàn bộ API và phân quyền RBAC dựa trên dữ liệu thực tế trong Neon PostgreSQL.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/QuanLySieuThi",
+      "type": "string"
+    },
+    {
+      "key": "ownerToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cashierToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "warehouseToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "currentCustomerId",
+      "value": "CUS-001",
+      "type": "string"
+    },
+    {
+      "key": "currentProductId",
+      "value": "PRD-004",
+      "type": "string"
+    },
+    {
+      "key": "currentCategoryId",
+      "value": "CAT-001",
+      "type": "string"
+    },
+    {
+      "key": "currentInvoiceId",
+      "value": "INV-001",
+      "type": "string"
+    },
+    {
+      "key": "currentVoucherId",
+      "value": "VCH-001",
+      "type": "string"
+    },
+    {
+      "key": "newCreatedInvoiceId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01. Authentication",
+      "item": [
+        {
+          "name": "1.1 Login - STORE_OWNER (owner02)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.data && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set(\"ownerToken\", jsonData.data.accessToken);",
+                  "    console.log(\"Saved ownerToken:\", jsonData.data.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"owner02\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "1.2 Login - CASHIER (cashier01)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.data && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set(\"cashierToken\", jsonData.data.accessToken);",
+                  "    console.log(\"Saved cashierToken:\", jsonData.data.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cashier01\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "1.3 Login - INVENTORY_MANAGER (warehouse01)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.data && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set(\"warehouseToken\", jsonData.data.accessToken);",
+                  "    console.log(\"Saved warehouseToken:\", jsonData.data.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"warehouse01\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "1.4 Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "1.5 Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02. Employee Management",
+      "item": [
+        {
+          "name": "2.1 Get Employee List (as STORE_OWNER) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/employee?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employee"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2.2 Get Employee List (as CASHIER) - Expect 403 Forbidden",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/employee",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employee"]
+            }
+          }
+        },
+        {
+          "name": "2.3 Get Employee Detail (as STORE_OWNER) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/employee/EMP-002",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employee", "EMP-002"]
+            }
+          }
+        },
+        {
+          "name": "2.4 Self View Profile (CASHIER viewing EMP-002) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/employee/EMP-002",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employee", "EMP-002"]
+            }
+          }
+        },
+        {
+          "name": "2.5 Create Employee (as STORE_OWNER) - Expect 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"test_cashier_{{$timestamp}}\",\n  \"password\": \"123456\",\n  \"fullName\": \"Nhân viên Mới\",\n  \"phoneNumber\": \"0988{{$randomInt}}\",\n  \"email\": \"newemp{{$timestamp}}@gmail.com\",\n  \"position\": \"CASHIER\",\n  \"status\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/employee",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employee"]
+            }
+          }
+        },
+        {
+          "name": "2.6 Update Employee (as STORE_OWNER) - Expect 200",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Trần Thị Thu Ngân Updated\",\n  \"phoneNumber\": \"0912222222\",\n  \"email\": \"ngan.updated@gmail.com\",\n  \"position\": \"CASHIER\",\n  \"status\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/employee/EMP-002",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employee", "EMP-002"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03. Customer Management",
+      "item": [
+        {
+          "name": "3.1 Get Customer List (as CASHIER) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customer?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customer"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3.2 Search Customer by Phone (0901111111) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customer?keyword=0901111111",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customer"],
+              "query": [
+                { "key": "keyword", "value": "0901111111" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3.3 Get Customer Invoice History (CUS-001) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customer/{{currentCustomerId}}/invoices?page=1&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customer", "{{currentCustomerId}}", "invoices"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3.4 Create Customer (as CASHIER) - Expect 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Khách Hàng Mới Test\",\n  \"phoneNumber\": \"0977{{$randomInt}}\",\n  \"email\": \"khach{{$timestamp}}@gmail.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customer",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customer"]
+            }
+          }
+        },
+        {
+          "name": "3.5 Access Customer (as INVENTORY_MANAGER) - Expect 403 Forbidden",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{warehouseToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customer",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customer"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04. Product Management",
+      "item": [
+        {
+          "name": "4.1 Get Product List (Authenticated) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/product?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "product"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.2 Get Product Detail (PRD-004 - Oreo) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/{{currentProductId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "product", "{{currentProductId}}"]
+            }
+          }
+        },
+        {
+          "name": "4.3 Get Low Stock Alerts (threshold=100) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{warehouseToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/low-stock/alerts?threshold=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "product", "low-stock", "alerts"],
+              "query": [
+                { "key": "threshold", "value": "100" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.4 Update Product (as INVENTORY_MANAGER) - Expect 200",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{warehouseToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"Oreo 133g Chocolate Flavour\",\n  \"categoryId\": \"CAT-002\",\n  \"unitPrice\": 23000.00,\n  \"productStatus\": \"ON_SALE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/{{currentProductId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "product", "{{currentProductId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05. Purchase Receipt (Nhập kho)",
+      "item": [
+        {
+          "name": "5.1 Get Purchase Receipts (as INVENTORY_MANAGER) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{warehouseToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/purchase-receipt?page=1&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "purchase-receipt"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "5.2 Get Purchase Receipt Detail (VCH-001) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{warehouseToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/purchase-receipt/{{currentVoucherId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "purchase-receipt", "{{currentVoucherId}}"]
+            }
+          }
+        },
+        {
+          "name": "5.3 Create Purchase Receipt (as INVENTORY_MANAGER) - Expect 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{warehouseToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplierName\": \"Công ty TNHH Orion Food\",\n  \"note\": \"Nhập bánh snack định kỳ\",\n  \"items\": [\n    {\n      \"productId\": \"PRD-004\",\n      \"productName\": \"Oreo 133g\",\n      \"categoryId\": \"CAT-002\",\n      \"purchasedQuantity\": 50,\n      \"purchasePrice\": 18000.00,\n      \"unitPrice\": 22000.00,\n      \"expirationDate\": \"2027-12-31T00:00:00\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/purchase-receipt",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "purchase-receipt"]
+            }
+          }
+        },
+        {
+          "name": "5.4 Access Purchase Receipt (as CASHIER) - Expect 403 Forbidden",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/purchase-receipt",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "purchase-receipt"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06. Invoice (POS Bán hàng)",
+      "item": [
+        {
+          "name": "6.1 Create Invoice POS (as CASHIER) - Expect 201",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var res = pm.response.json();",
+                  "if (res && res.data && res.data.invoiceId) {",
+                  "    pm.collectionVariables.set(\"newCreatedInvoiceId\", res.data.invoiceId);",
+                  "    console.log(\"Saved newCreatedInvoiceId:\", res.data.invoiceId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"0901111111\",\n  \"usePoints\": false,\n  \"items\": [\n    {\n      \"productId\": \"PRD-004\",\n      \"quantity\": 2\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/invoice",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invoice"]
+            }
+          }
+        },
+        {
+          "name": "6.2 Get Invoice List (as CASHIER) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invoice?page=1&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invoice"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "6.3 Get Invoice Detail (INV-001) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invoice/{{currentInvoiceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invoice", "{{currentInvoiceId}}"]
+            }
+          }
+        },
+        {
+          "name": "6.4 Cancel Pending Invoice - Expect 200",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/invoice/{{newCreatedInvoiceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invoice", "{{newCreatedInvoiceId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07. Payment (Thanh toán)",
+      "item": [
+        {
+          "name": "7.1 Process Cash Payment (as CASHIER) - Expect 200",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoiceId\": \"INV-PAY-005\",\n  \"paymentMethod\": \"CASH\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payment/process",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment", "process"]
+            }
+          }
+        },
+        {
+          "name": "7.2 Process VNPay Payment (as CASHIER) - Expect 200 (paymentUrl)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoiceId\": \"INV-001\",\n  \"paymentMethod\": \"VNPAY\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payment/process",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment", "process"]
+            }
+          }
+        },
+        {
+          "name": "7.3 Get Transactions List (as CASHIER) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/payment/transactions?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment", "transactions"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "7.4 Get Payment Summary Revenue - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/payment/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment", "summary"]
+            }
+          }
+        },
+        {
+          "name": "7.5 Get Invoice Payment History (INV-001) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/payment/history/{{currentInvoiceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment", "history", "{{currentInvoiceId}}"]
+            }
+          }
+        },
+        {
+          "name": "7.6 Access Payment (as INVENTORY_MANAGER) - Expect 403 Forbidden",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{warehouseToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/payment/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payment", "transactions"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08. Return Receipt (Đổi trả hàng)",
+      "item": [
+        {
+          "name": "8.1 Get Return Receipts (as CASHIER) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/return-receipt?page=1&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "return-receipt"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "8.2 Create Return Receipt (as CASHIER) - Expect 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoiceId\": \"INV-001\",\n  \"reason\": \"Sản phẩm bao bì rách khi mở hộp\",\n  \"items\": [\n    {\n      \"productId\": \"PRD-004\",\n      \"returnQuantity\": 1\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/return-receipt",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "return-receipt"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "09. Report (Kiểm kê kho)",
+      "item": [
+        {
+          "name": "9.1 Get Stock Discrepancy Reports (as INVENTORY_MANAGER) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{warehouseToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/report/stock-discrepancy?page=1&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "report", "stock-discrepancy"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "9.2 Create Stock Discrepancy Report (as INVENTORY_MANAGER) - Expect 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{warehouseToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Biên bản kiểm kê định kỳ\",\n  \"items\": [\n    {\n      \"productId\": \"PRD-004\",\n      \"actualQuantity\": 48,\n      \"discrepancyReason\": \"Hư hỏng 2 hộp do ẩm mốc\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/report/stock-discrepancy",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "report", "stock-discrepancy"]
+            }
+          }
+        },
+        {
+          "name": "9.3 Access Stock Report (as CASHIER) - Expect 403 Forbidden",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/report/stock-discrepancy",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "report", "stock-discrepancy"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Feedback (Đánh giá khách hàng)",
+      "item": [
+        {
+          "name": "10.1 Submit Feedback (Public - No Token Required) - Expect 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerName\": \"Khách Hàng Thân Thiết\",\n  \"phoneNumber\": \"0901111111\",\n  \"rating\": 5,\n  \"comment\": \"Cửa hàng phục vụ rất tốt và nhanh chóng!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/feedback",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "feedback"]
+            }
+          }
+        },
+        {
+          "name": "10.2 Get Feedback List & Summary (as STORE_OWNER) - Expect 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ownerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/feedback?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "feedback"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "10.3 Get Feedback List (as CASHIER) - Expect 403 Forbidden",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cashierToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/feedback",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "feedback"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
