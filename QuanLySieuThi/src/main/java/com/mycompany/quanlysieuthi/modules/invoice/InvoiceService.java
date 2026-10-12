@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import com.mycompany.quanlysieuthi.util.IdGenerator;
 
 /**
  * Service handling business logic for Invoice operations.
@@ -47,7 +48,9 @@ public class InvoiceService {
                     .orElseThrow(() -> new NotFoundException("Khách hàng không tồn tại: " + request.getCustomerId()));
         }
 
-        String invoiceId = UUID.randomUUID().toString();
+        String invoiceId = IdGenerator.nextInvoiceId();
+        List<String> detailIds = IdGenerator.nextInvoiceDetailIds(request.getItems().size());
+        int detailIndex = 0;
         LocalDateTime now = LocalDateTime.now();
 
         BigDecimal originalTotal = BigDecimal.ZERO;
@@ -76,7 +79,7 @@ public class InvoiceService {
             BigDecimal subtotal = product.getUnitPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity()));
             originalTotal = originalTotal.add(subtotal);
 
-            String detailId = UUID.randomUUID().toString();
+            String detailId = detailIds.get(detailIndex++);
             details.add(new InvoiceDetail(detailId, invoiceId, product.getProductId(),
                     itemReq.getQuantity(), product.getUnitPrice(), subtotal));
 

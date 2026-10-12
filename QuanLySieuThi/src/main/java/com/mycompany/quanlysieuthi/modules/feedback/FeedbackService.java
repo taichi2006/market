@@ -11,6 +11,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import com.mycompany.quanlysieuthi.util.IdGenerator;
 import java.util.regex.Pattern;
 
 /**
@@ -33,28 +34,28 @@ public class FeedbackService {
 
     public FeedbackResponse.CreateResponse createFeedback(FeedbackRequest.Create request) {
         if (request == null) {
-            throw new IllegalArgumentException("Dữ liệu đánh giá không được để trống");
+            throw new IllegalArgumentException("Dá»¯ liá»‡u Ä‘Ã¡nh giÃ¡ khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng");
         }
 
         if (request.getRating() == null) {
-            throw new IllegalArgumentException("Thiếu số sao đánh giá (rating).");
+            throw new IllegalArgumentException("Thiáº¿u sá»‘ sao Ä‘Ã¡nh giÃ¡ (rating).");
         }
 
         if (request.getRating() < 1 || request.getRating() > 5) {
-            throw new IllegalArgumentException("rating không nằm trong khoảng từ 1 đến 5.");
+            throw new IllegalArgumentException("rating khÃ´ng náº±m trong khoáº£ng tá»« 1 Ä‘áº¿n 5.");
         }
 
         String phoneNumber = null;
         if (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty()) {
             phoneNumber = request.getPhoneNumber().trim();
             if (!PHONE_PATTERN.matcher(phoneNumber).matches()) {
-                throw new IllegalArgumentException("Số điện thoại không đúng định dạng.");
+                throw new IllegalArgumentException("Sá»‘ Ä‘iá»‡n thoáº¡i khÃ´ng Ä‘Ãºng Ä‘á»‹nh dáº¡ng.");
             }
         }
 
         String customerName;
         if (request.getCustomerName() == null || request.getCustomerName().trim().isEmpty()) {
-            customerName = "Khách ẩn danh";
+            customerName = "KhÃ¡ch áº©n danh";
         } else {
             customerName = request.getCustomerName().trim();
         }
@@ -63,7 +64,7 @@ public class FeedbackService {
                 ? request.getComment().trim()
                 : null;
 
-        String feedbackId = UUID.randomUUID().toString();
+        String feedbackId = IdGenerator.nextFeedbackId();
         LocalDateTime now = LocalDateTime.now();
 
         Feedback feedback = new Feedback(
@@ -90,14 +91,14 @@ public class FeedbackService {
         int limit = (limitParam != null) ? limitParam : 10;
 
         if (page <= 0) {
-            throw new IllegalArgumentException("Tham số page phải lớn hơn 0");
+            throw new IllegalArgumentException("Tham sá»‘ page pháº£i lá»›n hÆ¡n 0");
         }
         if (limit <= 0) {
-            throw new IllegalArgumentException("Tham số limit phải lớn hơn 0");
+            throw new IllegalArgumentException("Tham sá»‘ limit pháº£i lá»›n hÆ¡n 0");
         }
 
         if (ratingParam != null && (ratingParam < 1 || ratingParam > 5)) {
-            throw new IllegalArgumentException("Số sao lọc (rating) không hợp lệ (rating phải từ 1 đến 5).");
+            throw new IllegalArgumentException("Sá»‘ sao lá»c (rating) khÃ´ng há»£p lá»‡ (rating pháº£i tá»« 1 Ä‘áº¿n 5).");
         }
 
         LocalDateTime fromDate = null;
@@ -110,7 +111,7 @@ public class FeedbackService {
                 fromLocalDate = LocalDate.parse(fromDateStr.trim(), DateTimeFormatter.ISO_LOCAL_DATE);
                 fromDate = fromLocalDate.atStartOfDay();
             } catch (DateTimeParseException e) {
-                throw new IllegalArgumentException("Định dạng ngày tháng không hợp lệ (YYYY-MM-DD).");
+                throw new IllegalArgumentException("Äá»‹nh dáº¡ng ngÃ y thÃ¡ng khÃ´ng há»£p lá»‡ (YYYY-MM-DD).");
             }
         }
 
@@ -119,12 +120,12 @@ public class FeedbackService {
                 toLocalDate = LocalDate.parse(toDateStr.trim(), DateTimeFormatter.ISO_LOCAL_DATE);
                 toDate = toLocalDate.atTime(LocalTime.MAX);
             } catch (DateTimeParseException e) {
-                throw new IllegalArgumentException("Định dạng ngày tháng không hợp lệ (YYYY-MM-DD).");
+                throw new IllegalArgumentException("Äá»‹nh dáº¡ng ngÃ y thÃ¡ng khÃ´ng há»£p lá»‡ (YYYY-MM-DD).");
             }
         }
 
         if (fromLocalDate != null && toLocalDate != null && fromLocalDate.isAfter(toLocalDate)) {
-            throw new IllegalArgumentException("fromDate không được sau toDate.");
+            throw new IllegalArgumentException("fromDate khÃ´ng Ä‘Æ°á»£c sau toDate.");
         }
 
         FeedbackResponse.Summary summary = feedbackRepository.getSummary(fromDate, toDate);
@@ -140,17 +141,12 @@ public class FeedbackService {
 
     public FeedbackResponse.Detail getFeedbackDetail(String feedbackId) {
         if (feedbackId == null || feedbackId.trim().isEmpty()) {
-            throw new IllegalArgumentException("ID không đúng định dạng UUID.");
+            throw new IllegalArgumentException("ID khÃ´ng Ä‘Ãºng Ä‘á»‹nh dáº¡ng UUID.");
         }
 
-        try {
-            UUID.fromString(feedbackId.trim());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("ID không đúng định dạng UUID.");
-        }
 
         Feedback feedback = feedbackRepository.findById(feedbackId.trim())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy đánh giá với ID tương ứng."));
+                .orElseThrow(() -> new NotFoundException("KhÃ´ng tÃ¬m tháº¥y Ä‘Ã¡nh giÃ¡ vá»›i ID tÆ°Æ¡ng á»©ng."));
 
         return mapToDetailResponse(feedback);
     }

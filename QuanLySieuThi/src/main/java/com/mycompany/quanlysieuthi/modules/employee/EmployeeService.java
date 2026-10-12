@@ -8,6 +8,7 @@ import com.mycompany.quanlysieuthi.util.PasswordUtil;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import com.mycompany.quanlysieuthi.util.IdGenerator;
 import java.util.stream.Collectors;
 
 /**
@@ -72,7 +73,7 @@ public class EmployeeService {
             throw new ConflictException("username hoặc phone_number đã tồn tại.");
         }
 
-        String employeeId = UUID.randomUUID().toString();
+        String employeeId = IdGenerator.nextEmployeeId();
         String hashedPassword = PasswordUtil.hash(request.getPassword());
         Boolean status = (request.getStatus() != null) ? request.getStatus() : Boolean.TRUE;
 

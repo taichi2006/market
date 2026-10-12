@@ -14,6 +14,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import com.mycompany.quanlysieuthi.util.IdGenerator;
 
 /**
  * Service handling business logic for Report creation.
@@ -34,16 +35,16 @@ public class ReportService {
                                                                     String employeeId,
                                                                     String employeeFullName) {
         if (request == null) {
-            throw new IllegalArgumentException("Request body không được để trống");
+            throw new IllegalArgumentException("Request body khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng");
         }
         if (request.getAuditTitle() == null || request.getAuditTitle().trim().isEmpty()) {
-            throw new IllegalArgumentException("Tiêu đề kiểm kê (auditTitle) không được để trống");
+            throw new IllegalArgumentException("TiÃªu Ä‘á» kiá»ƒm kÃª (auditTitle) khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng");
         }
         if (request.getItems() == null || request.getItems().isEmpty()) {
-            throw new IllegalArgumentException("Danh sách mặt hàng kiểm kê (items) không được để trống");
+            throw new IllegalArgumentException("Danh sÃ¡ch máº·t hÃ ng kiá»ƒm kÃª (items) khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng");
         }
 
-        String reportId = UUID.randomUUID().toString();
+        String reportId = IdGenerator.nextReportId();
         LocalDateTime now = LocalDateTime.now();
 
         int totalDiscrepancyItems = 0;
@@ -52,15 +53,15 @@ public class ReportService {
 
         for (ReportRequest.Item item : request.getItems()) {
             if (item.getProductId() == null || item.getProductId().trim().isEmpty()) {
-                throw new IllegalArgumentException("Mã sản phẩm (productId) không được để trống");
+                throw new IllegalArgumentException("MÃ£ sáº£n pháº©m (productId) khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng");
             }
             if (item.getActualQuantity() == null || item.getActualQuantity() < 0) {
-                throw new IllegalArgumentException("Số lượng thực tế (actualQuantity) phải là số nguyên >= 0");
+                throw new IllegalArgumentException("Sá»‘ lÆ°á»£ng thá»±c táº¿ (actualQuantity) pháº£i lÃ  sá»‘ nguyÃªn >= 0");
             }
 
             Product product = reportRepository.findProductById(item.getProductId().trim())
                     .orElseThrow(() -> new NotFoundException(
-                            "Có productId trong danh sách không tồn tại trong hệ thống: " + item.getProductId().trim()));
+                            "CÃ³ productId trong danh sÃ¡ch khÃ´ng tá»“n táº¡i trong há»‡ thá»‘ng: " + item.getProductId().trim()));
 
             int systemQuantity = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
             int actualQuantity = item.getActualQuantity();
@@ -79,7 +80,7 @@ public class ReportService {
                 totalDiscrepancyItems++;
                 if (item.getReason() == null || item.getReason().trim().isEmpty()) {
                     throw new IllegalArgumentException(
-                            "Thiếu lý do giải trình cho mặt hàng bị chênh lệch: " + product.getProductName());
+                            "Thiáº¿u lÃ½ do giáº£i trÃ¬nh cho máº·t hÃ ng bá»‹ chÃªnh lá»‡ch: " + product.getProductName());
                 }
             }
 
@@ -136,13 +137,13 @@ public class ReportService {
         int limit = (limitParam != null) ? limitParam : 10;
 
         if (page <= 0) {
-            throw new IllegalArgumentException("Tham số page phải lớn hơn 0");
+            throw new IllegalArgumentException("Tham sá»‘ page pháº£i lá»›n hÆ¡n 0");
         }
         if (limit < 0) {
-            throw new IllegalArgumentException("Tham số limit phải lớn hơn hoặc bằng 0");
+            throw new IllegalArgumentException("Tham sá»‘ limit pháº£i lá»›n hÆ¡n hoáº·c báº±ng 0");
         }
         if (limit == 0 && page != 1) {
-            throw new IllegalArgumentException("Khi limit = 0, page phải là 1 để lấy toàn bộ danh sách");
+            throw new IllegalArgumentException("Khi limit = 0, page pháº£i lÃ  1 Ä‘á»ƒ láº¥y toÃ n bá»™ danh sÃ¡ch");
         }
 
         LocalDateTime fromDateTime = null;
@@ -153,7 +154,7 @@ public class ReportService {
                 LocalDate fromDate = LocalDate.parse(fromDateStr.trim());
                 fromDateTime = fromDate.atStartOfDay();
             } catch (DateTimeParseException e) {
-                throw new IllegalArgumentException("Định dạng ngày tháng fromDate không hợp lệ (yêu cầu YYYY-MM-DD)");
+                throw new IllegalArgumentException("Äá»‹nh dáº¡ng ngÃ y thÃ¡ng fromDate khÃ´ng há»£p lá»‡ (yÃªu cáº§u YYYY-MM-DD)");
             }
         }
 
@@ -162,12 +163,12 @@ public class ReportService {
                 LocalDate toDate = LocalDate.parse(toDateStr.trim());
                 toDateTime = toDate.atTime(LocalTime.MAX);
             } catch (DateTimeParseException e) {
-                throw new IllegalArgumentException("Định dạng ngày tháng toDate không hợp lệ (yêu cầu YYYY-MM-DD)");
+                throw new IllegalArgumentException("Äá»‹nh dáº¡ng ngÃ y thÃ¡ng toDate khÃ´ng há»£p lá»‡ (yÃªu cáº§u YYYY-MM-DD)");
             }
         }
 
         if (fromDateTime != null && toDateTime != null && fromDateTime.isAfter(toDateTime)) {
-            throw new IllegalArgumentException("fromDate không được sau toDate");
+            throw new IllegalArgumentException("fromDate khÃ´ng Ä‘Æ°á»£c sau toDate");
         }
 
         return reportRepository.findAuditReports(page, limit, employeeId, fromDateTime, toDateTime);
@@ -175,17 +176,12 @@ public class ReportService {
 
     public ReportResponse.DetailResponse getStockDiscrepancyDetail(String id) {
         if (id == null || id.trim().isEmpty()) {
-            throw new IllegalArgumentException("ID biên bản kiểm kê không được để trống");
+            throw new IllegalArgumentException("ID biÃªn báº£n kiá»ƒm kÃª khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng");
         }
 
-        try {
-            UUID.fromString(id.trim());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("ID không đúng định dạng UUID");
-        }
 
         return reportRepository.findAuditReportDetailById(id.trim())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy biên bản kiểm kê với ID tương ứng: " + id.trim()));
+                .orElseThrow(() -> new NotFoundException("KhÃ´ng tÃ¬m tháº¥y biÃªn báº£n kiá»ƒm kÃª vá»›i ID tÆ°Æ¡ng á»©ng: " + id.trim()));
     }
 
     private String formatIso(LocalDateTime dateTime) {

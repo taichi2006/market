@@ -5,6 +5,7 @@ import com.mycompany.quanlysieuthi.entity.Invoice;
 import com.mycompany.quanlysieuthi.entity.ReturnReceipt;
 import com.mycompany.quanlysieuthi.util.ConflictException;
 import com.mycompany.quanlysieuthi.util.NotFoundException;
+import com.mycompany.quanlysieuthi.util.IdGenerator;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -103,7 +104,7 @@ public class ReturnReceiptService {
             productRestockMap.put(productId, returnQty);
         }
 
-        String returnReceiptId = UUID.randomUUID().toString();
+        String returnReceiptId = IdGenerator.nextReturnReceiptId();
         LocalDateTime now = LocalDateTime.now();
         String reason = request.getReason() != null ? request.getReason().trim() : null;
 

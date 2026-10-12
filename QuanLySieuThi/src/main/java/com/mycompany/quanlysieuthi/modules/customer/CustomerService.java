@@ -12,6 +12,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.UUID;
+import com.mycompany.quanlysieuthi.util.IdGenerator;
 import java.util.stream.Collectors;
 
 /**
@@ -51,7 +52,7 @@ public class CustomerService {
         }
 
         Customer customer = new Customer();
-        customer.setCustomerId(UUID.randomUUID().toString());
+        customer.setCustomerId(IdGenerator.nextCustomerId());
         customer.setFullName(request.getFullName().trim());
         customer.setPhoneNumber(phone);
         customer.setEmail((request.getEmail() != null && !request.getEmail().trim().isEmpty())

@@ -5,6 +5,7 @@ import com.mycompany.quanlysieuthi.entity.Payment;
 import com.mycompany.quanlysieuthi.util.ConflictException;
 import com.mycompany.quanlysieuthi.util.NotFoundException;
 import com.mycompany.quanlysieuthi.util.VnPayUtil;
+import com.mycompany.quanlysieuthi.util.IdGenerator;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -66,7 +67,7 @@ public class PaymentService {
             finalAmount = BigDecimal.ZERO;
         }
 
-        String transactionId = UUID.randomUUID().toString();
+        String transactionId = IdGenerator.nextTransactionId();
         LocalDateTime now = LocalDateTime.now();
 
         if ("CASH".equals(method)) {

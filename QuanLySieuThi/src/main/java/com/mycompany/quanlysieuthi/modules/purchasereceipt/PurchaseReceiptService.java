@@ -16,6 +16,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import com.mycompany.quanlysieuthi.util.IdGenerator;
 
 /**
  * Service handling business logic for Purchase Receipt.
@@ -45,7 +46,17 @@ public class PurchaseReceiptService {
             throw new IllegalArgumentException("Danh sách mặt hàng nhập kho (items) không được để trống");
         }
 
-        String voucherId = UUID.randomUUID().toString();
+        String voucherId = IdGenerator.nextVoucherId();
+        int newProductCount = 0;
+        for (PurchaseReceiptRequest.Item it : request.getItems()) {
+            if (it.getProductId() == null || it.getProductId().trim().isEmpty()) {
+                newProductCount++;
+            }
+        }
+        List<String> generatedProductIds = IdGenerator.nextProductIds(newProductCount);
+        int newProdIdx = 0;
+        List<String> detailIds = IdGenerator.nextPurchaseDetailIds(request.getItems().size());
+        int detailIdx = 0;
         LocalDateTime now = LocalDateTime.now();
         BigDecimal totalAmount = BigDecimal.ZERO;
 
@@ -94,7 +105,7 @@ public class PurchaseReceiptService {
 
             String productId = (item.getProductId() != null && !item.getProductId().trim().isEmpty())
                     ? item.getProductId().trim()
-                    : UUID.randomUUID().toString();
+                    : generatedProductIds.get(newProdIdx++);
 
             String defaultStatus = "ON_SALE";
 
@@ -109,7 +120,7 @@ public class PurchaseReceiptService {
             );
             productsToPersist.add(product);
 
-            String detailId = UUID.randomUUID().toString();
+            String detailId = detailIds.get(detailIdx++);
             PurchaseReceiptDetail detail = new PurchaseReceiptDetail(
                     detailId,
                     voucherId,
