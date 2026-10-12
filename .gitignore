@@ -11,5 +11,6 @@
 # Bỏ qua mọi file bảo mật môi trường
 **/.env
 
-*.md
-![R][r][E][e][A][a][D][d][M][m][E][e][.[mM][dD]
+# Bỏ qua thư mục làm việc của Postman
+.postman/
+postman/

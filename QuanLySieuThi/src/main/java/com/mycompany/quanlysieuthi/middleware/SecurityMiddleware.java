@@ -88,7 +88,12 @@ public class SecurityMiddleware implements Filter {
      */
     private boolean isPublicRoute(HttpServletRequest request) {
         String uri = request.getRequestURI();
-        return uri != null && uri.contains("/api/auth");
+        if (uri == null) {
+            return false;
+        }
+        return uri.contains("/api/auth")
+                || uri.contains("/api/payment/vnpay-return")
+                || uri.contains("/api/payment/vnpay-ipn");
     }
 
     /**
@@ -153,30 +158,13 @@ public class SecurityMiddleware implements Filter {
             return false;
         }
 
-        // 5. Product Management: STORE_OWNER, CASHIER, INVENTORY_MANAGER for GET
-        if (uri.contains("/api/product")) {
-            if ("GET".equalsIgnoreCase(request.getMethod())) {
-                if (uri.contains("/low-stock")) {
-                    if ("STORE_OWNER".equalsIgnoreCase(position) || "INVENTORY_MANAGER".equalsIgnoreCase(position)) {
-                        return true;
-                    }
-                    ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
-                            "Từ chối truy cập: Bạn không có quyền xem cảnh báo tồn kho.");
-                    return false;
-                }
-                if ("STORE_OWNER".equalsIgnoreCase(position) || "CASHIER".equalsIgnoreCase(position) || "INVENTORY_MANAGER".equalsIgnoreCase(position)) {
-                    return true;
-                }
-            } else if ("PATCH".equalsIgnoreCase(request.getMethod())) {
-                if ("STORE_OWNER".equalsIgnoreCase(position) || "INVENTORY_MANAGER".equalsIgnoreCase(position)) {
-                    return true;
-                }
-                ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
-                        "Từ chối truy cập: Người gọi không có quyền cập nhật sản phẩm.");
-                return false;
+        // 5. Payment Management: STORE_OWNER or CASHIER
+        if (uri.contains("/api/payment")) {
+            if ("STORE_OWNER".equalsIgnoreCase(position) || "CASHIER".equalsIgnoreCase(position)) {
+                return true;
             }
             ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
-                    "Từ chối truy cập: Bạn không có quyền truy cập sản phẩm.");
+                    "Người dùng không có quyền truy cập (ví dụ INVENTORY_MANAGER).");
             return false;
         }
 
