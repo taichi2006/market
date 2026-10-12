@@ -19,24 +19,37 @@ public final class DatabaseConfig {
                 .getClassLoader()
                 .getResourceAsStream(".env")) {
 
-            if (input == null)
-                throw new IllegalStateException("Không tìm thấy .env");
+            if (input != null) {
+                env.load(new InputStreamReader(input, StandardCharsets.UTF_8));
+            }
+        } catch (Exception ignored) {
+        }
 
-            env.load(new InputStreamReader(input, StandardCharsets.UTF_8));
+        String dbUrl = getEnvOrProperty("DATABASE_URL", env);
+        String dbUser = getEnvOrProperty("DATABASE_USERNAME", env);
+        String dbPass = getEnvOrProperty("DATABASE_PASSWORD", env);
 
-        } catch (Exception e) {
-            throw new IllegalStateException("Không thể đọc .env", e);
+        if (dbUrl == null || dbUrl.trim().isEmpty()) {
+            throw new IllegalStateException("DATABASE_URL is not configured (check Render environment variables or .env file)");
         }
 
         Map<String, Object> properties = new HashMap<>();
-
-        properties.put("hibernate.hikari.jdbcUrl",
-                env.getProperty("DATABASE_URL"));
-        properties.put("hibernate.hikari.username",
-                env.getProperty("DATABASE_USERNAME"));
-        properties.put("hibernate.hikari.password",
-                env.getProperty("DATABASE_PASSWORD"));
+        properties.put("hibernate.hikari.jdbcUrl", dbUrl);
+        properties.put("hibernate.hikari.username", dbUser);
+        properties.put("hibernate.hikari.password", dbPass);
 
         return properties;
+    }
+
+    private static String getEnvOrProperty(String key, Properties props) {
+        String sysEnv = System.getenv(key);
+        if (sysEnv != null && !sysEnv.trim().isEmpty()) {
+            return sysEnv.trim();
+        }
+        String sysProp = System.getProperty(key);
+        if (sysProp != null && !sysProp.trim().isEmpty()) {
+            return sysProp.trim();
+        }
+        return props.getProperty(key);
     }
 }

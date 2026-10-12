@@ -1,0 +1,10 @@
+**/target/
+**/.git/
+**/.idea/
+**/*.iml
+**/.vscode/
+**/.env
+**/.env.bak
+**/*.log
+API Design CNPM.xlsx
+database.txt
