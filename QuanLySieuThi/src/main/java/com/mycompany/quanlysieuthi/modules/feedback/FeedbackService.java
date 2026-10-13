@@ -34,28 +34,28 @@ public class FeedbackService {
 
     public FeedbackResponse.CreateResponse createFeedback(FeedbackRequest.Create request) {
         if (request == null) {
-            throw new IllegalArgumentException("Dá»¯ liá»‡u Ä‘Ã¡nh giÃ¡ khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng");
+            throw new IllegalArgumentException("Dữ liệu đánh giá không được để trống");
         }
 
         if (request.getRating() == null) {
-            throw new IllegalArgumentException("Thiáº¿u sá»‘ sao Ä‘Ã¡nh giÃ¡ (rating).");
+            throw new IllegalArgumentException("Thiếu số sao đánh giá (rating).");
         }
 
         if (request.getRating() < 1 || request.getRating() > 5) {
-            throw new IllegalArgumentException("rating khÃ´ng náº±m trong khoáº£ng tá»« 1 Ä‘áº¿n 5.");
+            throw new IllegalArgumentException("rating không nằm trong khoảng từ 1 đến 5.");
         }
 
         String phoneNumber = null;
         if (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty()) {
             phoneNumber = request.getPhoneNumber().trim();
             if (!PHONE_PATTERN.matcher(phoneNumber).matches()) {
-                throw new IllegalArgumentException("Sá»‘ Ä‘iá»‡n thoáº¡i khÃ´ng Ä‘Ãºng Ä‘á»‹nh dáº¡ng.");
+                throw new IllegalArgumentException("Số điện thoại không đúng định dạng.");
             }
         }
 
         String customerName;
         if (request.getCustomerName() == null || request.getCustomerName().trim().isEmpty()) {
-            customerName = "KhÃ¡ch áº©n danh";
+            customerName = "Khách ẩn danh";
         } else {
             customerName = request.getCustomerName().trim();
         }

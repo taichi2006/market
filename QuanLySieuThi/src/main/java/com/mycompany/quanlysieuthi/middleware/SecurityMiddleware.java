@@ -179,6 +179,19 @@ public class SecurityMiddleware implements Filter {
             return false;
         }
 
+        // 7. Category Management: STORE_OWNER only for mutations (POST, PUT, DELETE); GET allowed for authenticated staff
+        if (uri.contains("/api/category") || uri.contains("/api/categories")) {
+            if ("STORE_OWNER".equalsIgnoreCase(position)) {
+                return true;
+            }
+            if ("GET".equalsIgnoreCase(request.getMethod())) {
+                return true;
+            }
+            ResponseUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
+                    "Từ chối truy cập: Chỉ Quản trị viên (STORE_OWNER) mới có quyền sử dụng chức năng quản lý loại sản phẩm.");
+            return false;
+        }
+
         return true;
     }
 

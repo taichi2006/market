@@ -14,6 +14,7 @@ public class ReportRequest implements Serializable {
         private static final long serialVersionUID = 1L;
 
         private String auditTitle;
+        private String note;
         private List<Item> items;
 
         public StockAudit() {
@@ -25,11 +26,25 @@ public class ReportRequest implements Serializable {
         }
 
         public String getAuditTitle() {
-            return auditTitle;
+            if (auditTitle != null && !auditTitle.trim().isEmpty()) {
+                return auditTitle;
+            }
+            if (note != null && !note.trim().isEmpty()) {
+                return note;
+            }
+            return null;
         }
 
         public void setAuditTitle(String auditTitle) {
             this.auditTitle = auditTitle;
+        }
+
+        public String getNote() {
+            return note;
+        }
+
+        public void setNote(String note) {
+            this.note = note;
         }
 
         public List<Item> getItems() {
@@ -47,6 +62,7 @@ public class ReportRequest implements Serializable {
         private String productId;
         private Integer actualQuantity;
         private String reason;
+        private String discrepancyReason;
 
         public Item() {
         }
@@ -74,11 +90,22 @@ public class ReportRequest implements Serializable {
         }
 
         public String getReason() {
-            return reason;
+            if (reason != null && !reason.trim().isEmpty()) {
+                return reason;
+            }
+            return discrepancyReason;
         }
 
         public void setReason(String reason) {
             this.reason = reason;
+        }
+
+        public String getDiscrepancyReason() {
+            return discrepancyReason;
+        }
+
+        public void setDiscrepancyReason(String discrepancyReason) {
+            this.discrepancyReason = discrepancyReason;
         }
     }
 }

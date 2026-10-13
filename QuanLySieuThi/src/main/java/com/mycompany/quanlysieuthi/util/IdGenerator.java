@@ -9,6 +9,7 @@ import com.mycompany.quanlysieuthi.entity.Invoice;
 import com.mycompany.quanlysieuthi.entity.InvoiceDetail;
 import com.mycompany.quanlysieuthi.entity.Payment;
 import com.mycompany.quanlysieuthi.entity.Product;
+import com.mycompany.quanlysieuthi.entity.ProductCategory;
 import com.mycompany.quanlysieuthi.entity.PurchaseReceiptDetail;
 import com.mycompany.quanlysieuthi.entity.ReturnReceipt;
 import com.mycompany.quanlysieuthi.entity.Voucher;
@@ -157,5 +158,10 @@ public final class IdGenerator {
     /** Danh gia phan hoi khach hang: DG001, DG002... */
     public static String nextFeedbackId() {
         return generateId(Feedback.class, "feedbackId", "DG");
+    }
+
+    /** Loai san pham: LSP001, LSP002... */
+    public static String nextCategoryId() {
+        return generateId(ProductCategory.class, "categoryId", "LSP");
     }
 }

@@ -15,6 +15,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import com.mycompany.quanlysieuthi.util.IdGenerator;
 
@@ -68,12 +69,25 @@ public class PurchaseReceiptService {
             if (item.getProductName() == null || item.getProductName().trim().isEmpty()) {
                 throw new IllegalArgumentException("Tên sản phẩm không được để trống");
             }
-            if (item.getCategoryId() == null || item.getCategoryId().trim().isEmpty()) {
+            String catId = item.getCategoryId();
+            if (catId == null || catId.trim().isEmpty()) {
+                if (item.getProductId() != null && !item.getProductId().trim().isEmpty()) {
+                    Optional<Product> existingProd = purchaseReceiptRepository.findProductById(item.getProductId().trim());
+                    if (existingProd.isPresent() && existingProd.get().getCategoryId() != null) {
+                        catId = existingProd.get().getCategoryId();
+                    }
+                }
+                if (catId == null || catId.trim().isEmpty()) {
+                    catId = purchaseReceiptRepository.findFirstCategoryId();
+                }
+            }
+            if (catId == null || catId.trim().isEmpty()) {
                 throw new IllegalArgumentException("Mã ngành hàng (categoryId) không được để trống");
             }
-            if (!purchaseReceiptRepository.existsCategory(item.getCategoryId().trim())) {
-                throw new NotFoundException("Mã ngành hàng không tồn tại: " + item.getCategoryId());
+            if (!purchaseReceiptRepository.existsCategory(catId.trim())) {
+                throw new NotFoundException("Mã ngành hàng không tồn tại: " + catId);
             }
+            item.setCategoryId(catId.trim());
             if (item.getUnitPrice() == null || item.getUnitPrice().compareTo(BigDecimal.ZERO) < 0) {
                 throw new IllegalArgumentException("Giá bán lẻ (unitPrice) phải >= 0");
             }

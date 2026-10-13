@@ -27,7 +27,7 @@ public class ResponseUtil {
     }
 
     public static void sendSuccess(HttpServletResponse response, int statusCode, String message, Object data, Object meta) throws IOException {
-        response.setContentType("application/json");
+        response.setContentType("application/json; charset=UTF-8");
         response.setCharacterEncoding("UTF-8");
         response.setStatus(statusCode);
 
@@ -57,7 +57,7 @@ public class ResponseUtil {
     }
 
     public static void sendError(HttpServletResponse response, int statusCode, String message) throws IOException {
-        response.setContentType("application/json");
+        response.setContentType("application/json; charset=UTF-8");
         response.setCharacterEncoding("UTF-8");
         response.setStatus(statusCode);
 
