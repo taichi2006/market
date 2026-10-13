@@ -353,6 +353,109 @@ Hệ thống hỗ trợ 3 chức vụ (`position`):
 
 ---
 
+### MODULE 4.1: PRODUCT CATEGORY MANAGEMENT (`/api/category`)
+> **Quyền**: Chỉ Quản trị viên (`STORE_OWNER`). Nhân viên khác sẽ nhận mã lỗi `403 FORBIDDEN`.
+
+#### 1. Lấy danh sách loại sản phẩm
+- **Endpoint**: `GET /api/category`
+- **Query Params**:
+  - `page` (default: 1)
+  - `limit` (default: 10)
+  - `keyword` (tìm theo tên loại hoặc mã loại)
+  - `all` (boolean, nếu `true` trả về toàn bộ danh sách để phục vụ dropdown)
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy danh sách loại sản phẩm thành công",
+  "data": [
+    {
+      "categoryId": "CAT-001",
+      "categoryName": "Beverages",
+      "productCount": 12
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 10,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### 2. Lấy chi tiết loại sản phẩm
+- **Endpoint**: `GET /api/category/:id`
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy thông tin loại sản phẩm thành công",
+  "data": {
+    "categoryId": "CAT-001",
+    "categoryName": "Beverages",
+    "productCount": 12
+  }
+}
+```
+
+#### 3. Tạo mới loại sản phẩm
+- **Endpoint**: `POST /api/category`
+- **Request Body**:
+```json
+{
+  "categoryName": "Snacks & Bánh Kẹo"
+}
+```
+> *Lưu ý*: `categoryId` được hệ thống tự động sinh theo thứ tự chuẩn tăng dần: `LSP001`, `LSP002`, `LSP003`... Người dùng không cần và không được truyền `categoryId`.
+
+- **Response `201 CREATED`**:
+```json
+{
+  "status": 201,
+  "message": "Tạo loại sản phẩm thành công",
+  "data": {
+    "categoryId": "LSP001",
+    "categoryName": "Snacks & Bánh Kẹo",
+    "productCount": 0
+  }
+}
+```
+
+#### 4. Cập nhật loại sản phẩm
+- **Endpoint**: `PUT /api/category/:id`
+- **Request Body**:
+```json
+{
+  "categoryName": "Bánh Kẹo & Đồ Ăn Vặt"
+}
+```
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Cập nhật loại sản phẩm thành công",
+  "data": {
+    "categoryId": "CAT-009",
+    "categoryName": "Bánh Kẹo & Đồ Ăn Vặt",
+    "productCount": 0
+  }
+}
+```
+
+#### 5. Xóa loại sản phẩm
+- **Endpoint**: `DELETE /api/category/:id`
+- **Mô tả**: Xóa loại sản phẩm khỏi hệ thống. Nếu loại sản phẩm đang chứa sản phẩm liên kết (`productCount > 0`), hệ thống trả về lỗi `409 CONFLICT`.
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Xóa loại sản phẩm thành công"
+}
+```
+
+---
+
 ### MODULE 5: NHẬP HÀNG (`/api/purchase-receipt`)
 > **Quyền**: `STORE_OWNER` hoặc `INVENTORY_MANAGER`.
 

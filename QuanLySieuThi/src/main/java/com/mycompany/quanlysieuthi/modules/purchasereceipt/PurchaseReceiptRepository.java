@@ -41,6 +41,30 @@ public class PurchaseReceiptRepository extends BaseRepository<PurchaseReceipt, S
         }
     }
 
+    public String findFirstCategoryId() {
+        EntityManager em = JpaUtil.getEntityManager();
+        try {
+            List<String> ids = em.createQuery("SELECT c.categoryId FROM ProductCategory c ORDER BY c.categoryId ASC", String.class)
+                    .setMaxResults(1)
+                    .getResultList();
+            return ids.isEmpty() ? null : ids.get(0);
+        } finally {
+            em.close();
+        }
+    }
+
+    public Optional<Product> findProductById(String productId) {
+        if (productId == null || productId.trim().isEmpty()) {
+            return Optional.empty();
+        }
+        EntityManager em = JpaUtil.getEntityManager();
+        try {
+            return Optional.ofNullable(em.find(Product.class, productId.trim()));
+        } finally {
+            em.close();
+        }
+    }
+
     public void savePurchaseReceiptTransaction(Voucher voucher,
                                                PurchaseReceipt purchaseReceipt,
                                                List<Product> products,
