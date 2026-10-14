@@ -1,7 +1,7 @@
 package com.mycompany.quanlysieuthi.modules.product;
 
 import com.mycompany.quanlysieuthi.entity.Product;
-import com.mycompany.quanlysieuthi.util.NotFoundException;
+import com.mycompany.quanlysieuthi.common.exception.AppException.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

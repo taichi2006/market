@@ -3,7 +3,7 @@ package com.mycompany.quanlysieuthi.modules.purchasereceipt;
 import com.mycompany.quanlysieuthi.entity.Product;
 import com.mycompany.quanlysieuthi.entity.PurchaseReceipt;
 import com.mycompany.quanlysieuthi.entity.Voucher;
-import com.mycompany.quanlysieuthi.util.NotFoundException;
+import com.mycompany.quanlysieuthi.common.exception.AppException.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
