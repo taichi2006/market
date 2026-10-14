@@ -24,7 +24,7 @@ public class RevenueRepository {
             String invJpql = "SELECT COUNT(i), COALESCE(SUM(i.originalTotal), 0), " +
                              "COALESCE(SUM(COALESCE(i.discountAmount, 0)), 0), " +
                              "COALESCE(SUM(i.originalTotal - COALESCE(i.discountAmount, 0)), 0) " +
-                             "FROM Invoice i WHERE i.status = 'PAID' AND i.createdAt >= :from AND i.createdAt <= :to";
+                             "FROM Invoice i WHERE UPPER(i.status) = 'PAID' AND i.createdAt >= :from AND i.createdAt <= :to";
             Query invQ = em.createQuery(invJpql);
             invQ.setParameter("from", from);
             invQ.setParameter("to", to);
@@ -39,7 +39,7 @@ public class RevenueRepository {
             String payJpql = "SELECT " +
                              "COALESCE(SUM(CASE WHEN UPPER(p.paymentMethod) = 'CASH' THEN p.amount ELSE 0 END), 0), " +
                              "COALESCE(SUM(CASE WHEN UPPER(p.paymentMethod) IN ('QR', 'BANK_TRANSFER') THEN p.amount ELSE 0 END), 0) " +
-                             "FROM Payment p WHERE p.status = 'PAID' AND p.paymentTime >= :from AND p.paymentTime <= :to";
+                             "FROM Payment p WHERE UPPER(p.status) = 'PAID' AND p.paymentTime >= :from AND p.paymentTime <= :to";
             Query payQ = em.createQuery(payJpql);
             payQ.setParameter("from", from);
             payQ.setParameter("to", to);
@@ -76,9 +76,9 @@ public class RevenueRepository {
 
     public List<ReportResponse.RevenueTimelineItemDto> getRevenueTimeline(LocalDateTime from, LocalDateTime to, String type) {
         String pattern;
-        if ("day".equalsIgnoreCase(type)) {
+        if ("day".equalsIgnoreCase(type) || "daily".equalsIgnoreCase(type)) {
             pattern = "YYYY-MM-DD HH24:00";
-        } else if ("year".equalsIgnoreCase(type)) {
+        } else if ("year".equalsIgnoreCase(type) || "yearly".equalsIgnoreCase(type)) {
             pattern = "YYYY-MM";
         } else {
             pattern = "YYYY-MM-DD";
@@ -88,14 +88,13 @@ public class RevenueRepository {
         try {
             Map<String, Object[]> timelineMap = new TreeMap<>();
 
-            String invSql = "SELECT TO_CHAR(i.created_at, :pattern) AS tp, " +
+            String invSql = "SELECT TO_CHAR(i.created_at, '" + pattern + "') AS tp, " +
                             "COUNT(i.invoice_id) AS inv_count, " +
                             "COALESCE(SUM(i.original_total - COALESCE(i.discount_amount, 0)), 0) AS rev " +
-                            "FROM invoice i WHERE i.status = 'PAID' " +
+                            "FROM invoice i WHERE UPPER(i.status) = 'PAID' " +
                             "AND i.created_at >= :from AND i.created_at <= :to " +
-                            "GROUP BY TO_CHAR(i.created_at, :pattern) ORDER BY tp ASC";
+                            "GROUP BY 1 ORDER BY 1 ASC";
             Query invQ = em.createNativeQuery(invSql);
-            invQ.setParameter("pattern", pattern);
             invQ.setParameter("from", from);
             invQ.setParameter("to", to);
             List<?> invList = invQ.getResultList();
@@ -107,14 +106,13 @@ public class RevenueRepository {
                 timelineMap.put(tp, new Object[]{cnt, rev, BigDecimal.ZERO, BigDecimal.ZERO});
             }
 
-            String paySql = "SELECT TO_CHAR(p.payment_time, :pattern) AS tp, " +
+            String paySql = "SELECT TO_CHAR(p.payment_time, '" + pattern + "') AS tp, " +
                             "COALESCE(SUM(CASE WHEN UPPER(p.payment_method) = 'CASH' THEN p.amount ELSE 0 END), 0) AS cash, " +
                             "COALESCE(SUM(CASE WHEN UPPER(p.payment_method) IN ('QR', 'BANK_TRANSFER') THEN p.amount ELSE 0 END), 0) AS online " +
-                            "FROM payment p WHERE p.status = 'PAID' " +
+                            "FROM payment p WHERE UPPER(p.status) = 'PAID' " +
                             "AND p.payment_time >= :from AND p.payment_time <= :to " +
-                            "GROUP BY TO_CHAR(p.payment_time, :pattern) ORDER BY tp ASC";
+                            "GROUP BY 1 ORDER BY 1 ASC";
             Query payQ = em.createNativeQuery(paySql);
-            payQ.setParameter("pattern", pattern);
             payQ.setParameter("from", from);
             payQ.setParameter("to", to);
             List<?> payList = payQ.getResultList();
@@ -165,24 +163,71 @@ public class RevenueRepository {
 
             if (receiptId != null && !receiptId.trim().isEmpty()) {
                 jpql.append("AND v.voucherId = :receiptId ");
-            }
-            if (from != null) {
-                jpql.append("AND v.createdAt >= :from ");
-            }
-            if (to != null) {
-                jpql.append("AND v.createdAt <= :to ");
+            } else {
+                if (from != null) {
+                    jpql.append("AND v.createdAt >= :from ");
+                }
+                if (to != null) {
+                    jpql.append("AND v.createdAt <= :to ");
+                }
             }
             jpql.append("ORDER BY v.createdAt DESC, v.voucherId ASC");
 
             TypedQuery<Object[]> q = em.createQuery(jpql.toString(), Object[].class);
             if (receiptId != null && !receiptId.trim().isEmpty()) {
                 q.setParameter("receiptId", receiptId.trim());
+            } else {
+                if (from != null) {
+                    q.setParameter("from", from);
+                }
+                if (to != null) {
+                    q.setParameter("to", to);
+                }
             }
-            if (from != null) {
-                q.setParameter("from", from);
+            return q.getResultList();
+        } finally {
+            em.close();
+        }
+    }
+
+    public List<Object[]> findDisposalReceiptRowsForExcel(String receiptId, LocalDateTime from, LocalDateTime to) {
+        EntityManager em = JpaUtil.getEntityManager();
+        try {
+            StringBuilder jpql = new StringBuilder(
+                    "SELECT v.voucherId, v.createdAt, e.fullName, " +
+                    "p.productId, p.productName, pc.categoryName, " +
+                    "drd.disposedQuantity, COALESCE(p.unitPrice, 0), " +
+                    "drd.disposalReason " +
+                    "FROM Voucher v " +
+                    "JOIN DisposalReceipt dr ON v.voucherId = dr.voucherId " +
+                    "JOIN DisposalReceiptDetail drd ON v.voucherId = drd.voucherId " +
+                    "LEFT JOIN Employee e ON v.employeeId = e.employeeId " +
+                    "LEFT JOIN Product p ON drd.productId = p.productId " +
+                    "LEFT JOIN ProductCategory pc ON p.categoryId = pc.categoryId " +
+                    "WHERE 1=1 ");
+
+            if (receiptId != null && !receiptId.trim().isEmpty()) {
+                jpql.append("AND v.voucherId = :receiptId ");
+            } else {
+                if (from != null) {
+                    jpql.append("AND v.createdAt >= :from ");
+                }
+                if (to != null) {
+                    jpql.append("AND v.createdAt <= :to ");
+                }
             }
-            if (to != null) {
-                q.setParameter("to", to);
+            jpql.append("ORDER BY v.createdAt DESC, v.voucherId ASC");
+
+            TypedQuery<Object[]> q = em.createQuery(jpql.toString(), Object[].class);
+            if (receiptId != null && !receiptId.trim().isEmpty()) {
+                q.setParameter("receiptId", receiptId.trim());
+            } else {
+                if (from != null) {
+                    q.setParameter("from", from);
+                }
+                if (to != null) {
+                    q.setParameter("to", to);
+                }
             }
             return q.getResultList();
         } finally {
@@ -207,24 +252,26 @@ public class RevenueRepository {
 
             if (receiptId != null && !receiptId.trim().isEmpty()) {
                 jpql.append("AND ir.reportId = :receiptId ");
-            }
-            if (from != null) {
-                jpql.append("AND ir.reportDate >= :from ");
-            }
-            if (to != null) {
-                jpql.append("AND ir.reportDate <= :to ");
+            } else {
+                if (from != null) {
+                    jpql.append("AND ir.reportDate >= :from ");
+                }
+                if (to != null) {
+                    jpql.append("AND ir.reportDate <= :to ");
+                }
             }
             jpql.append("ORDER BY ir.reportDate DESC, ir.reportId ASC");
 
             TypedQuery<Object[]> q = em.createQuery(jpql.toString(), Object[].class);
             if (receiptId != null && !receiptId.trim().isEmpty()) {
                 q.setParameter("receiptId", receiptId.trim());
-            }
-            if (from != null) {
-                q.setParameter("from", from);
-            }
-            if (to != null) {
-                q.setParameter("to", to);
+            } else {
+                if (from != null) {
+                    q.setParameter("from", from);
+                }
+                if (to != null) {
+                    q.setParameter("to", to);
+                }
             }
             return q.getResultList();
         } finally {
