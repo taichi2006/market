@@ -81,7 +81,7 @@ public class EmployeeRepository extends BaseRepository<Employee, String> {
         EntityManager em = getEntityManager();
         try {
             List<Employee> list = em.createQuery(
-                    "SELECT e FROM Employee e WHERE e.phoneNumber = :phoneNumber AND e.employeeId <> :employeeId",
+                    "SELECT e FROM Employee e WHERE e.phoneNumber = :phoneNumber AND UPPER(TRIM(e.employeeId)) <> UPPER(TRIM(:employeeId))",
                     Employee.class
             ).setParameter("phoneNumber", phoneNumber.trim())
              .setParameter("employeeId", employeeId.trim())
@@ -159,7 +159,7 @@ public class EmployeeRepository extends BaseRepository<Employee, String> {
             java.util.Map<String, Object> params = new java.util.LinkedHashMap<>();
 
             if (keyword != null && !keyword.trim().isEmpty()) {
-                whereClause.append(" AND (LOWER(e.fullName) LIKE :keyword OR LOWER(e.username) LIKE :keyword) ");
+                whereClause.append(" AND (LOWER(e.fullName) LIKE :keyword OR LOWER(e.employeeId) LIKE :keyword OR LOWER(e.username) LIKE :keyword) ");
                 params.put("keyword", "%" + keyword.trim().toLowerCase() + "%");
             }
 

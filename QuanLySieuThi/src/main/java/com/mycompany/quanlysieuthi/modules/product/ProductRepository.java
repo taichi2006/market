@@ -33,22 +33,24 @@ public class ProductRepository extends BaseRepository<Product, String> {
             );
 
             if (productStatus != null && !productStatus.trim().isEmpty()) {
-                jpql.append("AND p.productStatus = :productStatus ");
+                String normalizedStatus = productStatus.trim().toUpperCase();
+                if ("ON_SALE".equals(normalizedStatus)) {
+                    jpql.append("AND (UPPER(TRIM(p.productStatus)) = 'ON_SALE' OR p.productStatus IS NULL) ");
+                } else if ("DISCONTINUED".equals(normalizedStatus)) {
+                    jpql.append("AND UPPER(TRIM(p.productStatus)) = 'DISCONTINUED' ");
+                }
             }
             if (categoryId != null && !categoryId.trim().isEmpty()) {
                 jpql.append("AND p.categoryId = :categoryId ");
             }
             if (keyword != null && !keyword.trim().isEmpty()) {
-                jpql.append("AND (LOWER(p.productName) LIKE LOWER(:keyword) OR LOWER(p.productId) LIKE LOWER(:keyword)) ");
+                jpql.append("AND (LOWER(TRIM(p.productName)) LIKE LOWER(:keyword) OR LOWER(TRIM(p.productId)) LIKE LOWER(:keyword)) ");
             }
 
             jpql.append("ORDER BY p.productName ASC");
 
             TypedQuery<Object[]> query = em.createQuery(jpql.toString(), Object[].class);
 
-            if (productStatus != null && !productStatus.trim().isEmpty()) {
-                query.setParameter("productStatus", productStatus.trim());
-            }
             if (categoryId != null && !categoryId.trim().isEmpty()) {
                 query.setParameter("categoryId", categoryId.trim());
             }

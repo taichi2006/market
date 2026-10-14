@@ -178,7 +178,7 @@ public class EmployeeService {
             existing.setPassword(PasswordUtil.hash(request.getPassword().trim()));
         }
 
-        Employee saved = employeeRepository.save(existing);
+        Employee saved = employeeRepository.update(existing);
         return toResponse(saved);
     }
 

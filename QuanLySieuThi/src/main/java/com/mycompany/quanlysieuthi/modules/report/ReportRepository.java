@@ -10,20 +10,94 @@ import jakarta.persistence.EntityTransaction;
 import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Repository handling database operations for Report module.
  */
 public class ReportRepository extends BaseRepository<InventoryReport, String> {
+
+    public static class AuditMeta implements Serializable {
+        private static final long serialVersionUID = 1L;
+        private String auditTitle;
+        private String note;
+        private Map<String, String> itemReasons = new ConcurrentHashMap<>();
+
+        public AuditMeta() {}
+        public AuditMeta(String auditTitle, String note) {
+            this.auditTitle = auditTitle;
+            this.note = note;
+        }
+
+        public String getAuditTitle() { return auditTitle; }
+        public void setAuditTitle(String auditTitle) { this.auditTitle = auditTitle; }
+        public String getNote() { return note; }
+        public void setNote(String note) { this.note = note; }
+        public Map<String, String> getItemReasons() { return itemReasons; }
+        public void setItemReasons(Map<String, String> itemReasons) { this.itemReasons = itemReasons; }
+    }
+
+    private static final Map<String, AuditMeta> AUDIT_META_CACHE = new ConcurrentHashMap<>();
+    private static final File META_FILE = new File(System.getProperty("java.io.tmpdir"), "quanlysieuthi_audit_meta.ser");
+
+    static {
+        loadAuditMetaFile();
+    }
+
+    private static synchronized void loadAuditMetaFile() {
+        if (META_FILE.exists()) {
+            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(META_FILE))) {
+                Object obj = ois.readObject();
+                if (obj instanceof Map) {
+                    Map<?, ?> map = (Map<?, ?>) obj;
+                    for (Map.Entry<?, ?> entry : map.entrySet()) {
+                        if (entry.getKey() instanceof String && entry.getValue() instanceof AuditMeta) {
+                            AUDIT_META_CACHE.put((String) entry.getKey(), (AuditMeta) entry.getValue());
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private static synchronized void persistAuditMetaFile() {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(META_FILE))) {
+            oos.writeObject(new HashMap<>(AUDIT_META_CACHE));
+        } catch (Exception ignored) {
+        }
+    }
+
+    public static void saveAuditMeta(String reportId, String title, String note, Map<String, String> reasons) {
+        if (reportId == null) return;
+        AuditMeta meta = new AuditMeta(title, note);
+        if (reasons != null) {
+            meta.getItemReasons().putAll(reasons);
+        }
+        AUDIT_META_CACHE.put(reportId, meta);
+        persistAuditMetaFile();
+    }
+
+    public static AuditMeta getAuditMeta(String reportId) {
+        if (reportId == null) return null;
+        return AUDIT_META_CACHE.get(reportId);
+    }
 
     public ReportRepository() {
         super(InventoryReport.class);
@@ -133,7 +207,10 @@ public class ReportRepository extends BaseRepository<InventoryReport, String> {
                         ? reportDate.atOffset(ZoneOffset.UTC).format(isoFormatter)
                         : null;
 
-                String title = "Kiểm kê kho định kỳ " + (reportDate != null ? reportDate.format(titleFormatter) : "");
+                AuditMeta meta = getAuditMeta(reportId);
+                String title = (meta != null && meta.getAuditTitle() != null && !meta.getAuditTitle().trim().isEmpty())
+                        ? meta.getAuditTitle().trim()
+                        : ("Kiểm kê kho định kỳ " + (reportDate != null ? reportDate.format(titleFormatter) : ""));
 
                 ReportResponse.EmployeeDto empDto = null;
                 if (empId != null) {
@@ -187,8 +264,14 @@ public class ReportRepository extends BaseRepository<InventoryReport, String> {
             String createdAt = reportDate != null
                     ? reportDate.atOffset(ZoneOffset.UTC).format(isoFormatter)
                     : null;
-            String auditTitle = "Kiểm kê kho định kỳ " + (reportDate != null ? reportDate.format(titleFormatter) : "");
-            String note = "Biên bản kiểm kê kho định kỳ";
+
+            AuditMeta meta = getAuditMeta(reportId);
+            String auditTitle = (meta != null && meta.getAuditTitle() != null && !meta.getAuditTitle().trim().isEmpty())
+                    ? meta.getAuditTitle().trim()
+                    : ("Kiểm kê kho định kỳ " + (reportDate != null ? reportDate.format(titleFormatter) : ""));
+            String note = (meta != null && meta.getNote() != null && !meta.getNote().trim().isEmpty())
+                    ? meta.getNote().trim()
+                    : "Biên bản kiểm kê kho định kỳ";
 
             String detailJpql = "SELECT d.reportId, d.productId, p.productName, c.categoryName, " +
                     "d.systemQuantity, d.actualQuantity " +
@@ -220,14 +303,24 @@ public class ReportRepository extends BaseRepository<InventoryReport, String> {
                 String reason;
                 if (diff < 0) {
                     status = "SHORTAGE";
-                    reason = "Thiếu " + Math.abs(diff) + " sản phẩm so với tồn kho hệ thống";
                     totalDiscrepancyItems++;
                 } else if (diff > 0) {
                     status = "SURPLUS";
-                    reason = "Thừa " + diff + " sản phẩm so với tồn kho hệ thống";
                     totalDiscrepancyItems++;
                 } else {
                     status = "MATCH";
+                }
+
+                String customReason = (meta != null && meta.getItemReasons() != null)
+                        ? meta.getItemReasons().get(pId)
+                        : null;
+                if (customReason != null && !customReason.trim().isEmpty()) {
+                    reason = customReason.trim();
+                } else if (diff < 0) {
+                    reason = "Thiếu " + Math.abs(diff) + " sản phẩm so với tồn kho hệ thống";
+                } else if (diff > 0) {
+                    reason = "Thừa " + diff + " sản phẩm so với tồn kho hệ thống";
+                } else {
                     reason = "Khớp số lượng tồn kho";
                 }
 

@@ -64,7 +64,7 @@ public class CategoryRepository extends BaseRepository<ProductCategory, String> 
         try {
             StringBuilder jpql = new StringBuilder("SELECT c FROM ProductCategory c WHERE 1=1 ");
             if (keyword != null && !keyword.trim().isEmpty()) {
-                jpql.append("AND (LOWER(c.categoryId) LIKE LOWER(:keyword) OR LOWER(c.categoryName) LIKE LOWER(:keyword)) ");
+                jpql.append("AND (LOWER(TRIM(c.categoryId)) LIKE LOWER(:keyword) OR LOWER(TRIM(c.categoryName)) LIKE LOWER(:keyword)) ");
             }
             jpql.append("ORDER BY c.categoryId ASC");
 
@@ -89,7 +89,7 @@ public class CategoryRepository extends BaseRepository<ProductCategory, String> 
         try {
             StringBuilder jpql = new StringBuilder("SELECT COUNT(c) FROM ProductCategory c WHERE 1=1 ");
             if (keyword != null && !keyword.trim().isEmpty()) {
-                jpql.append("AND (LOWER(c.categoryId) LIKE LOWER(:keyword) OR LOWER(c.categoryName) LIKE LOWER(:keyword)) ");
+                jpql.append("AND (LOWER(TRIM(c.categoryId)) LIKE LOWER(:keyword) OR LOWER(TRIM(c.categoryName)) LIKE LOWER(:keyword)) ");
             }
             TypedQuery<Long> query = em.createQuery(jpql.toString(), Long.class);
             if (keyword != null && !keyword.trim().isEmpty()) {

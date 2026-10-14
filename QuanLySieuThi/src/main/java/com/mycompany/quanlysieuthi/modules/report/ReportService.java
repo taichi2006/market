@@ -131,6 +131,14 @@ public class ReportService {
 
         reportRepository.saveAuditReportTransaction(report, details);
 
+        Map<String, String> reasonsMap = new HashMap<>();
+        for (ReportRequest.Item item : request.getItems()) {
+            if (item.getReason() != null && !item.getReason().trim().isEmpty()) {
+                reasonsMap.put(item.getProductId().trim(), item.getReason().trim());
+            }
+        }
+        ReportRepository.saveAuditMeta(reportId, title.trim(), request.getNote(), reasonsMap);
+
         ReportResponse.CreatedByDto createdBy = new ReportResponse.CreatedByDto(
                 employeeId != null ? employeeId : "",
                 employeeFullName != null ? employeeFullName : ""
