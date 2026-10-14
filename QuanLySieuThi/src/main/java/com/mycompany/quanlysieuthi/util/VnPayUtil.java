@@ -22,11 +22,13 @@ public final class VnPayUtil {
     private static final String DEFAULT_HASH_SECRET = "DZCCAOLKTPSPVREZXKTJYBXMRVPBVHLY";
     private static final String DEFAULT_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
     private static final String DEFAULT_RETURN_URL = "http://localhost:8080/QuanLySieuThi/api/payment/vnpay-return";
+    private static final String DEFAULT_FRONTEND_URL = "http://localhost:5173";
 
     private static final String TMN_CODE;
     private static final String HASH_SECRET;
     private static final String PAYMENT_URL;
     private static final String RETURN_URL;
+    private static final String FRONTEND_URL;
 
     static {
         Properties env = new Properties();
@@ -41,6 +43,7 @@ public final class VnPayUtil {
         HASH_SECRET = layGiaTriCauHinh(env, "VNP_HASH_SECRET", DEFAULT_HASH_SECRET);
         PAYMENT_URL = layGiaTriCauHinh(env, "VNP_URL", DEFAULT_URL);
         RETURN_URL = layGiaTriCauHinh(env, "VNP_RETURN_URL", DEFAULT_RETURN_URL);
+        FRONTEND_URL = layGiaTriCauHinh(env, "FRONTEND_URL", DEFAULT_FRONTEND_URL);
     }
 
     private static String layGiaTriCauHinh(Properties env, String key, String defaultValue) {
@@ -68,6 +71,10 @@ public final class VnPayUtil {
 
     public static String getReturnUrl() {
         return RETURN_URL;
+    }
+
+    public static String getFrontendUrl() {
+        return FRONTEND_URL;
     }
 
     public static String createPaymentUrl(String transactionId, String invoiceId, BigDecimal amount, String clientIp) {

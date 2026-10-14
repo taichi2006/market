@@ -2,6 +2,7 @@ package com.mycompany.quanlysieuthi.modules.payment;
 
 import com.google.gson.Gson;
 import com.mycompany.quanlysieuthi.common.base.BaseController;
+import com.mycompany.quanlysieuthi.util.VnPayUtil;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -95,7 +96,10 @@ public class PaymentController extends BaseController {
             }
         } catch (Exception ignored) {}
 
-        String frontendHost = System.getenv("FRONTEND_URL");
+        String frontendHost = VnPayUtil.getFrontendUrl();
+        if (frontendHost == null || frontendHost.trim().isEmpty()) {
+            frontendHost = System.getenv("FRONTEND_URL");
+        }
         if (frontendHost == null || frontendHost.trim().isEmpty()) {
             frontendHost = "http://localhost:5173";
         }
