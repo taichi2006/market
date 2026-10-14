@@ -1,6 +1,6 @@
 package com.mycompany.quanlysieuthi.modules.category;
 
-import com.mycompany.quanlysieuthi.common.repository.BaseRepository;
+import com.mycompany.quanlysieuthi.common.base.BaseRepository;
 import com.mycompany.quanlysieuthi.entity.ProductCategory;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;

@@ -1,4 +1,4 @@
-package com.mycompany.quanlysieuthi.common.repository;
+package com.mycompany.quanlysieuthi.common.base;
 
 import com.mycompany.quanlysieuthi.config.JpaUtil;
 import jakarta.persistence.EntityManager;
@@ -10,10 +10,10 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * Generic Base Repository providing standardized CRUD operations and leak-proof transaction lifecycle management.
+ * Generic Base Repository cung cấp các thao tác CRUD chuẩn hóa và quản lý vòng đời transaction chống rò rỉ kết nối.
  *
- * @param <T>  Entity type
- * @param <ID> Primary Key type
+ * @param <T>  Kiểu dữ liệu của Entity
+ * @param <ID> Kiểu dữ liệu của Khóa chính (Primary Key)
  */
 public abstract class BaseRepository<T, ID> {
 

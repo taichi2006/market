@@ -4,7 +4,7 @@ import com.mycompany.quanlysieuthi.entity.Customer;
 import com.mycompany.quanlysieuthi.entity.Invoice;
 import com.mycompany.quanlysieuthi.entity.InvoiceDetail;
 import com.mycompany.quanlysieuthi.entity.Product;
-import com.mycompany.quanlysieuthi.util.NotFoundException;
+import com.mycompany.quanlysieuthi.common.exception.AppException.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

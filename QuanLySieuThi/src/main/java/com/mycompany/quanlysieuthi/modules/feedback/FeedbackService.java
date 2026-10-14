@@ -1,7 +1,7 @@
 package com.mycompany.quanlysieuthi.modules.feedback;
 
 import com.mycompany.quanlysieuthi.entity.Feedback;
-import com.mycompany.quanlysieuthi.util.NotFoundException;
+import com.mycompany.quanlysieuthi.common.exception.AppException.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

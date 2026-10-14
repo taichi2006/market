@@ -1,6 +1,6 @@
 package com.mycompany.quanlysieuthi.modules.returnreceipt;
 
-import com.mycompany.quanlysieuthi.common.repository.BaseRepository;
+import com.mycompany.quanlysieuthi.common.base.BaseRepository;
 import com.mycompany.quanlysieuthi.config.JpaUtil;
 import com.mycompany.quanlysieuthi.entity.Customer;
 import com.mycompany.quanlysieuthi.entity.Invoice;

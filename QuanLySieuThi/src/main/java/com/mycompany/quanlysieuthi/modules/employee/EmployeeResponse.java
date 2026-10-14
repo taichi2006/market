@@ -84,68 +84,13 @@ public class EmployeeResponse implements Serializable {
     /**
      * Container for paginated employee responses.
      */
-    public static class PageResult implements Serializable {
-        private static final long serialVersionUID = 1L;
-
-        private List<EmployeeResponse> data;
-        private PageMeta meta;
-
-        public PageResult() {
-        }
-
-        public PageResult(List<EmployeeResponse> data, PageMeta meta) {
-            this.data = data;
-            this.meta = meta;
-        }
-
-        public List<EmployeeResponse> getData() {
-            return data;
-        }
-
-        public void setData(List<EmployeeResponse> data) {
-            this.data = data;
-        }
-
-        public PageMeta getMeta() {
-            return meta;
-        }
-
-        public void setMeta(PageMeta meta) {
-            this.meta = meta;
-        }
+    public record PageResult(List<EmployeeResponse> data, PageMeta meta) implements Serializable {
+        public List<EmployeeResponse> getData() { return data; }
+        public PageMeta getMeta() { return meta; }
     }
 
     /**
      * Result returned after soft deleting an employee.
      */
-    public static class DeleteResult implements Serializable {
-        private static final long serialVersionUID = 1L;
-
-        private String employeeId;
-        private Boolean status;
-
-        public DeleteResult() {
-        }
-
-        public DeleteResult(String employeeId, Boolean status) {
-            this.employeeId = employeeId;
-            this.status = status;
-        }
-
-        public String getEmployeeId() {
-            return employeeId;
-        }
-
-        public void setEmployeeId(String employeeId) {
-            this.employeeId = employeeId;
-        }
-
-        public Boolean getStatus() {
-            return status;
-        }
-
-        public void setStatus(Boolean status) {
-            this.status = status;
-        }
-    }
+    public record DeleteResult(String employeeId, Boolean status) implements Serializable {}
 }

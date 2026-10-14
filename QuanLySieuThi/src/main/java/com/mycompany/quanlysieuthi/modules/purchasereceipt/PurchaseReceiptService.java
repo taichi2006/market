@@ -4,7 +4,7 @@ import com.mycompany.quanlysieuthi.entity.Product;
 import com.mycompany.quanlysieuthi.entity.PurchaseReceipt;
 import com.mycompany.quanlysieuthi.entity.PurchaseReceiptDetail;
 import com.mycompany.quanlysieuthi.entity.Voucher;
-import com.mycompany.quanlysieuthi.util.NotFoundException;
+import com.mycompany.quanlysieuthi.common.exception.AppException.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -87,7 +87,7 @@ public class PurchaseReceiptService {
             if (!purchaseReceiptRepository.existsCategory(catId.trim())) {
                 throw new NotFoundException("Mã ngành hàng không tồn tại: " + catId);
             }
-            item.setCategoryId(catId.trim());
+            final String finalCatId = catId.trim();
             if (item.getUnitPrice() == null || item.getUnitPrice().compareTo(BigDecimal.ZERO) < 0) {
                 throw new IllegalArgumentException("Giá bán lẻ (unitPrice) phải >= 0");
             }
@@ -125,7 +125,7 @@ public class PurchaseReceiptService {
 
             Product product = new Product(
                     productId,
-                    item.getCategoryId().trim(),
+                    finalCatId,
                     item.getProductName().trim(),
                     item.getPurchasedQuantity(),
                     expDateTime,
@@ -151,7 +151,7 @@ public class PurchaseReceiptService {
             createdProductDtos.add(new PurchaseReceiptResponse.CreatedProductDto(
                     productId,
                     item.getProductName().trim(),
-                    item.getCategoryId().trim(),
+                    finalCatId,
                     item.getUnitPrice(),
                     item.getPurchasedQuantity(),
                     formatIso(expDateTime),

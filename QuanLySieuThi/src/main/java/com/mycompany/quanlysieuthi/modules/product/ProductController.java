@@ -1,16 +1,11 @@
 package com.mycompany.quanlysieuthi.modules.product;
 
-import com.google.gson.JsonSyntaxException;
-import com.mycompany.quanlysieuthi.common.util.RequestUtil;
-import com.mycompany.quanlysieuthi.util.NotFoundException;
-import com.mycompany.quanlysieuthi.util.ResponseUtil;
+import com.mycompany.quanlysieuthi.common.base.BaseController;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * Controller handling Product operations:
@@ -20,7 +15,7 @@ import java.util.List;
  * GET  /api/product/low-stock/alerts
  */
 @WebServlet(name = "ProductController", urlPatterns = {"/api/product", "/api/product/*"})
-public class ProductController extends HttpServlet {
+public class ProductController extends BaseController {
 
     private final ProductService productService = new ProductService();
 
@@ -33,11 +28,8 @@ public class ProductController extends HttpServlet {
         } else if (pathInfo.equals("/low-stock/alerts") || pathInfo.equals("/low-stock/alerts/")) {
             handleGetLowStockAlerts(req, resp);
         } else {
-            String id = pathInfo.startsWith("/") ? pathInfo.substring(1) : pathInfo;
-            if (id.endsWith("/")) {
-                id = id.substring(0, id.length() - 1);
-            }
-            if (id.isEmpty()) {
+            String id = extractPathId(req);
+            if (id == null || id.isEmpty()) {
                 handleGetProducts(req, resp);
             } else {
                 handleGetProductById(id, resp);
@@ -47,18 +39,9 @@ public class ProductController extends HttpServlet {
 
     @Override
     protected void doPut(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        String pathInfo = req.getPathInfo();
-        if (pathInfo == null || pathInfo.equals("/") || pathInfo.isEmpty()) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Thiếu ID sản phẩm trên URL.");
-            return;
-        }
-
-        String id = pathInfo.startsWith("/") ? pathInfo.substring(1) : pathInfo;
-        if (id.endsWith("/")) {
-            id = id.substring(0, id.length() - 1);
-        }
-        if (id.isEmpty()) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Thiếu ID sản phẩm trên URL.");
+        String id = extractPathId(req);
+        if (id == null || id.isEmpty()) {
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Thiếu ID sản phẩm trên URL.");
             return;
         }
 
@@ -66,82 +49,44 @@ public class ProductController extends HttpServlet {
     }
 
     private void handleGetProducts(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        try {
-            int page = RequestUtil.parsePage(req);
-            int limit = RequestUtil.parseLimit(req);
+        handle(resp, () -> {
+            int page = parsePage(req);
+            int limit = parseLimit(req);
             String keyword = req.getParameter("keyword");
             String categoryId = req.getParameter("categoryId");
             String productStatus = req.getParameter("productStatus");
 
-            List<ProductResponse> products = productService.getProducts(page, limit, keyword, categoryId, productStatus);
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Lấy danh sách sản phẩm thành công.", products);
-
-        } catch (IllegalArgumentException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống khi lấy danh sách sản phẩm: " + e.getMessage());
-        }
+            return productService.getProducts(page, limit, keyword, categoryId, productStatus);
+        }, "Lấy danh sách sản phẩm thành công.");
     }
 
     private void handleGetProductById(String id, HttpServletResponse resp) throws IOException {
-        try {
-            ProductResponse product = productService.getProductById(id);
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Lấy thông tin sản phẩm thành công.", product);
-
-        } catch (NotFoundException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
-        } catch (IllegalArgumentException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống khi lấy chi tiết sản phẩm: " + e.getMessage());
-        }
+        handle(resp, () -> productService.getProductById(id), "Lấy thông tin sản phẩm thành công.");
     }
 
     private void handleUpdateProduct(String id, HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        try {
-            ProductRequest.Update requestDto = RequestUtil.parseJson(req, ProductRequest.Update.class);
+        handle(resp, () -> {
+            ProductRequest.Update requestDto = parseBody(req, ProductRequest.Update.class);
             if (requestDto == null) {
-                ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Request body không được để trống.");
-                return;
+                throw new IllegalArgumentException("Request body không được để trống.");
             }
-
-            ProductResponse.UpdateResponseDto updatedProduct = productService.updateProduct(id, requestDto);
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Cập nhật sản phẩm thành công.", updatedProduct);
-
-        } catch (JsonSyntaxException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Định dạng JSON không hợp lệ: " + e.getMessage());
-        } catch (NotFoundException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
-        } catch (IllegalArgumentException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống khi cập nhật sản phẩm: " + e.getMessage());
-        }
+            return productService.updateProduct(id, requestDto);
+        }, "Cập nhật sản phẩm thành công.");
     }
 
     private void handleGetLowStockAlerts(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        try {
+        handle(resp, () -> {
             Integer threshold = null;
             String thresholdStr = req.getParameter("threshold");
             if (thresholdStr != null && !thresholdStr.trim().isEmpty()) {
                 threshold = Integer.parseInt(thresholdStr.trim());
             }
 
-            int page = RequestUtil.parsePage(req);
-            int limit = RequestUtil.parseLimit(req);
+            int page = parsePage(req);
+            int limit = parseLimit(req);
             String categoryId = req.getParameter("categoryId");
 
-            List<ProductResponse.LowStockDto> alerts = productService.getLowStockAlerts(threshold, categoryId, page, limit);
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Lấy danh sách cảnh báo tồn kho thành công.", alerts);
-
-        } catch (IllegalArgumentException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống khi lấy danh sách cảnh báo tồn kho: " + e.getMessage());
-        }
+            return productService.getLowStockAlerts(threshold, categoryId, page, limit);
+        }, "Lấy danh sách cảnh báo tồn kho thành công.");
     }
 }

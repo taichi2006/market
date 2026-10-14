@@ -1,17 +1,11 @@
 package com.mycompany.quanlysieuthi.modules.purchasereceipt;
 
-import com.google.gson.JsonSyntaxException;
-import com.mycompany.quanlysieuthi.common.util.RequestUtil;
-import com.mycompany.quanlysieuthi.util.NotFoundException;
-import com.mycompany.quanlysieuthi.util.ResponseUtil;
-import io.jsonwebtoken.Claims;
+import com.mycompany.quanlysieuthi.common.base.BaseController;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * Controller handling Purchase Receipt endpoints:
@@ -20,97 +14,56 @@ import java.util.List;
  * GET  /api/purchase-receipt/:id - Lấy chi tiết phiếu nhập hàng
  */
 @WebServlet(name = "PurchaseReceiptController", urlPatterns = {"/api/purchase-receipt/*", "/api/purchase-receipt"})
-public class PurchaseReceiptController extends HttpServlet {
+public class PurchaseReceiptController extends BaseController {
 
     private final PurchaseReceiptService purchaseReceiptService = new PurchaseReceiptService();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        String pathInfo = req.getPathInfo();
+        String id = extractPathId(req);
 
-        if (pathInfo == null || pathInfo.equals("/") || pathInfo.isEmpty()) {
+        if (id == null || id.isEmpty() || id.equalsIgnoreCase("purchase-receipt")) {
             handleGetPurchaseReceiptList(req, resp);
         } else {
-            String id = pathInfo.startsWith("/") ? pathInfo.substring(1) : pathInfo;
-            if (id.endsWith("/")) {
-                id = id.substring(0, id.length() - 1);
-            }
-            if (id.isEmpty()) {
-                handleGetPurchaseReceiptList(req, resp);
-            } else {
-                handleGetPurchaseReceiptDetail(id, resp);
-            }
+            handleGetPurchaseReceiptDetail(id, resp);
         }
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        try {
-            PurchaseReceiptRequest requestDto = RequestUtil.parseJson(req, PurchaseReceiptRequest.class);
+        handle(resp, HttpServletResponse.SC_CREATED, () -> {
+            PurchaseReceiptRequest requestDto = parseBody(req, PurchaseReceiptRequest.class);
             if (requestDto == null) {
-                ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Request body không được để trống");
-                return;
+                throw new IllegalArgumentException("Request body không được để trống");
             }
 
-            Claims claims = (Claims) req.getAttribute("currentUser");
-            String employeeId = claims != null ? claims.get("employeeId", String.class) : "";
-            String fullName = claims != null ? claims.get("fullName", String.class) : "";
+            String employeeId = getCurrentEmployeeId(req);
+            String fullName = getCurrentFullName(req);
 
-            PurchaseReceiptResponse responseDto = purchaseReceiptService.createPurchaseReceipt(
+            return purchaseReceiptService.createPurchaseReceipt(
                     requestDto,
-                    employeeId,
-                    fullName
+                    employeeId != null ? employeeId : "",
+                    fullName != null ? fullName : ""
             );
-
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_CREATED, "Nhập hàng thành công", responseDto);
-
-        } catch (JsonSyntaxException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Malformed JSON payload: " + e.getMessage());
-        } catch (NotFoundException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
-        } catch (IllegalArgumentException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống khi tạo phiếu nhập hàng: " + e.getMessage());
-        }
+        }, "Nhập hàng thành công", null);
     }
 
     private void handleGetPurchaseReceiptList(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        try {
-            int page = RequestUtil.parsePage(req);
-            int limit = RequestUtil.parseLimit(req);
+        handle(resp, () -> {
+            int page = parsePage(req);
+            int limit = parseLimit(req);
             String supplierName = req.getParameter("supplierName");
             String employeeId = req.getParameter("employeeId");
             String fromDate = req.getParameter("fromDate");
             String toDate = req.getParameter("toDate");
 
-            List<PurchaseReceiptResponse.ListItemDto> data = purchaseReceiptService.getPurchaseReceipts(
+            return purchaseReceiptService.getPurchaseReceipts(
                     page, limit, supplierName, employeeId, fromDate, toDate
             );
-
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Lấy danh sách phiếu nhập hàng thành công", data);
-
-        } catch (IllegalArgumentException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống khi lấy danh sách phiếu nhập: " + e.getMessage());
-        }
+        }, "Lấy danh sách phiếu nhập hàng thành công");
     }
 
     private void handleGetPurchaseReceiptDetail(String id, HttpServletResponse resp) throws IOException {
-        try {
-            PurchaseReceiptResponse.DetailResponse data = purchaseReceiptService.getPurchaseReceiptDetail(id);
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Lấy chi tiết phiếu nhập hàng thành công", data);
-
-        } catch (NotFoundException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
-        } catch (IllegalArgumentException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống khi lấy chi tiết phiếu nhập: " + e.getMessage());
-        }
+        handle(resp, () -> purchaseReceiptService.getPurchaseReceiptDetail(id), "Lấy chi tiết phiếu nhập hàng thành công");
     }
 }

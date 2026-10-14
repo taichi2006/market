@@ -1,4 +1,4 @@
-package com.mycompany.quanlysieuthi.common.util;
+package com.mycompany.quanlysieuthi.util;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;

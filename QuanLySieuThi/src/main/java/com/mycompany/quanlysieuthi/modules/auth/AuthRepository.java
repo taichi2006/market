@@ -1,6 +1,6 @@
 package com.mycompany.quanlysieuthi.modules.auth;
 
-import com.mycompany.quanlysieuthi.common.repository.BaseRepository;
+import com.mycompany.quanlysieuthi.common.base.BaseRepository;
 import com.mycompany.quanlysieuthi.entity.Employee;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;

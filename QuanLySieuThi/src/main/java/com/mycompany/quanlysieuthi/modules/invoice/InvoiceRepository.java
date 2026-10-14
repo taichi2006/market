@@ -1,6 +1,6 @@
 package com.mycompany.quanlysieuthi.modules.invoice;
 
-import com.mycompany.quanlysieuthi.common.repository.BaseRepository;
+import com.mycompany.quanlysieuthi.common.base.BaseRepository;
 import com.mycompany.quanlysieuthi.config.JpaUtil;
 import com.mycompany.quanlysieuthi.entity.Customer;
 import com.mycompany.quanlysieuthi.entity.Invoice;
@@ -159,31 +159,17 @@ public class InvoiceRepository extends BaseRepository<Invoice, String> {
             List<InvoiceResponse.ListItemDto> list = new ArrayList<>();
 
             for (Object[] row : rows) {
-                String invId = row[0] != null ? row[0].toString() : null;
-                String createdAtStr = formatTimestamp(row[1]);
-                String invStatus = row[2] != null ? row[2].toString() : null;
-                BigDecimal originalTotal = toBigDecimal(row[3]);
-                BigDecimal discountAmount = toBigDecimal(row[4]);
-                BigDecimal finalAmount = originalTotal.subtract(discountAmount != null ? discountAmount : BigDecimal.ZERO);
-
-                String empId = row[5] != null ? row[5].toString() : null;
-                String empName = row[6] != null ? row[6].toString() : null;
-                InvoiceResponse.EmployeeDto empDto = empId != null ? new InvoiceResponse.EmployeeDto(empId, empName) : null;
-
-                String custId = row[7] != null ? row[7].toString() : null;
-                String custName = row[8] != null ? row[8].toString() : null;
-                String custPhone = row[9] != null ? row[9].toString() : null;
-                InvoiceResponse.CustomerDto custDto = custId != null ? new InvoiceResponse.CustomerDto(custId, custName, custPhone) : null;
-
+                BigDecimal orig = toBigDecimal(row[3]);
+                BigDecimal disc = toBigDecimal(row[4]);
                 list.add(new InvoiceResponse.ListItemDto(
-                        invId,
-                        createdAtStr,
-                        invStatus,
-                        originalTotal,
-                        discountAmount != null ? discountAmount : BigDecimal.ZERO,
-                        finalAmount,
-                        empDto,
-                        custDto
+                        (String) row[0],
+                        formatTimestamp(row[1]),
+                        (String) row[2],
+                        orig,
+                        disc,
+                        orig.subtract(disc),
+                        row[5] != null ? new InvoiceResponse.EmployeeDto((String) row[5], (String) row[6]) : null,
+                        row[7] != null ? new InvoiceResponse.CustomerDto((String) row[7], (String) row[8], (String) row[9]) : null
                 ));
             }
 
@@ -217,23 +203,8 @@ public class InvoiceRepository extends BaseRepository<Invoice, String> {
             }
 
             Object[] row = rows.get(0);
-            String invId = row[0] != null ? row[0].toString() : null;
-            String createdAtStr = formatTimestamp(row[1]);
-            String status = row[2] != null ? row[2].toString() : null;
-            BigDecimal originalTotal = toBigDecimal(row[3]);
-            BigDecimal discountAmount = toBigDecimal(row[4]);
-            BigDecimal finalAmount = originalTotal.subtract(discountAmount != null ? discountAmount : BigDecimal.ZERO);
-
-            String empId = row[5] != null ? row[5].toString() : null;
-            String empName = row[6] != null ? row[6].toString() : null;
-            String empUsername = row[7] != null ? row[7].toString() : null;
-            InvoiceResponse.EmployeeDto empDto = empId != null ? new InvoiceResponse.EmployeeDto(empId, empName, empUsername) : null;
-
-            String custId = row[8] != null ? row[8].toString() : null;
-            String custName = row[9] != null ? row[9].toString() : null;
-            String custPhone = row[10] != null ? row[10].toString() : null;
-            Integer custPoints = row[11] != null ? ((Number) row[11]).intValue() : null;
-            InvoiceResponse.CustomerDto custDto = custId != null ? new InvoiceResponse.CustomerDto(custId, custName, custPhone, custPoints) : null;
+            BigDecimal orig = toBigDecimal(row[3]);
+            BigDecimal disc = toBigDecimal(row[4]);
 
             String itemsSql = "SELECT d.invoice_detail_id, d.product_id, p.product_name, d.quantity, d.unit_price, d.subtotal " +
                     "FROM invoice_detail d " +
@@ -245,27 +216,26 @@ public class InvoiceRepository extends BaseRepository<Invoice, String> {
 
             List<Object[]> itemRows = itemsQuery.getResultList();
             List<InvoiceResponse.ItemDetailDto> items = new ArrayList<>();
-
             for (Object[] ir : itemRows) {
-                String detailId = ir[0] != null ? ir[0].toString() : null;
-                String productId = ir[1] != null ? ir[1].toString() : null;
-                String productName = ir[2] != null ? ir[2].toString() : null;
-                Integer quantity = ir[3] != null ? ((Number) ir[3]).intValue() : 0;
-                BigDecimal unitPrice = toBigDecimal(ir[4]);
-                BigDecimal subtotal = toBigDecimal(ir[5]);
-
-                items.add(new InvoiceResponse.ItemDetailDto(detailId, productId, productName, quantity, unitPrice, subtotal));
+                items.add(new InvoiceResponse.ItemDetailDto(
+                        (String) ir[0],
+                        (String) ir[1],
+                        (String) ir[2],
+                        ir[3] != null ? ((Number) ir[3]).intValue() : 0,
+                        toBigDecimal(ir[4]),
+                        toBigDecimal(ir[5])
+                ));
             }
 
             return Optional.of(new InvoiceResponse.DetailResponse(
-                    invId,
-                    createdAtStr,
-                    status,
-                    originalTotal,
-                    discountAmount != null ? discountAmount : BigDecimal.ZERO,
-                    finalAmount,
-                    empDto,
-                    custDto,
+                    (String) row[0],
+                    formatTimestamp(row[1]),
+                    (String) row[2],
+                    orig,
+                    disc,
+                    orig.subtract(disc),
+                    row[5] != null ? new InvoiceResponse.EmployeeDto((String) row[5], (String) row[6], (String) row[7]) : null,
+                    row[8] != null ? new InvoiceResponse.CustomerDto((String) row[8], (String) row[9], (String) row[10], row[11] != null ? ((Number) row[11]).intValue() : null) : null,
                     items
             ));
         } finally {

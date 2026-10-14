@@ -3,11 +3,15 @@ package com.mycompany.quanlysieuthi.modules.report;
 import com.mycompany.quanlysieuthi.entity.InventoryReport;
 import com.mycompany.quanlysieuthi.entity.InventoryReportDetail;
 import com.mycompany.quanlysieuthi.entity.Product;
-import com.mycompany.quanlysieuthi.util.NotFoundException;
+import com.mycompany.quanlysieuthi.common.exception.AppException.*;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -15,6 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import com.mycompany.quanlysieuthi.util.IdGenerator;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
  * Service handling business logic for Report creation.
@@ -22,13 +28,19 @@ import com.mycompany.quanlysieuthi.util.IdGenerator;
 public class ReportService {
 
     private final ReportRepository reportRepository;
+    private final RevenueRepository revenueRepository;
+    private final ReportExcelExporter excelExporter;
 
     public ReportService() {
         this.reportRepository = new ReportRepository();
+        this.revenueRepository = new RevenueRepository();
+        this.excelExporter = new ReportExcelExporter(this.revenueRepository);
     }
 
-    public ReportService(ReportRepository reportRepository) {
+    public ReportService(ReportRepository reportRepository, RevenueRepository revenueRepository) {
         this.reportRepository = reportRepository;
+        this.revenueRepository = revenueRepository;
+        this.excelExporter = new ReportExcelExporter(this.revenueRepository);
     }
 
     public ReportResponse.StockAuditResponse createStockAuditReport(ReportRequest.StockAudit request,
@@ -196,5 +208,121 @@ public class ReportService {
         }
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
         return dateTime.atOffset(ZoneOffset.UTC).format(formatter);
+    }
+
+    public static class DateRange {
+        public final LocalDateTime from;
+        public final LocalDateTime to;
+        public final String type;
+        public final String date;
+        public final Integer month;
+        public final Integer year;
+
+        public DateRange(LocalDateTime from, LocalDateTime to, String type, String date, Integer month, Integer year) {
+            this.from = from;
+            this.to = to;
+            this.type = type;
+            this.date = date;
+            this.month = month;
+            this.year = year;
+        }
+    }
+
+    public DateRange calculateDateRange(String typeParam, String dateParam, Integer monthParam, Integer yearParam, String fromDateParam, String toDateParam) {
+        LocalDate today = LocalDate.now();
+        String type = typeParam != null ? typeParam.trim().toLowerCase() : null;
+
+        if (type == null || type.isEmpty()) {
+            if (dateParam != null && !dateParam.trim().isEmpty()) {
+                type = "day";
+            } else if (monthParam != null) {
+                type = "month";
+            } else if (yearParam != null) {
+                type = "year";
+            } else {
+                type = "month";
+            }
+        }
+
+        LocalDateTime from;
+        LocalDateTime to;
+        String resolvedDate = null;
+        Integer resolvedMonth = null;
+        Integer resolvedYear = null;
+
+        if ("day".equals(type)) {
+            LocalDate d;
+            if (dateParam != null && !dateParam.trim().isEmpty()) {
+                try {
+                    d = LocalDate.parse(dateParam.trim());
+                } catch (Exception e) {
+                    d = today;
+                }
+            } else {
+                d = today;
+            }
+            resolvedDate = d.toString();
+            from = d.atStartOfDay();
+            to = d.atTime(LocalTime.MAX);
+        } else if ("year".equals(type)) {
+            int y = (yearParam != null && yearParam > 1900) ? yearParam : today.getYear();
+            resolvedYear = y;
+            from = LocalDate.of(y, 1, 1).atStartOfDay();
+            to = LocalDate.of(y, 12, 31).atTime(LocalTime.MAX);
+        } else {
+            type = "month";
+            int y = (yearParam != null && yearParam > 1900) ? yearParam : today.getYear();
+            int m = (monthParam != null && monthParam >= 1 && monthParam <= 12) ? monthParam : today.getMonthValue();
+            resolvedYear = y;
+            resolvedMonth = m;
+            YearMonth ym = YearMonth.of(y, m);
+            from = ym.atDay(1).atStartOfDay();
+            to = ym.atEndOfMonth().atTime(LocalTime.MAX);
+        }
+
+        if (fromDateParam != null && !fromDateParam.trim().isEmpty()) {
+            try {
+                if (fromDateParam.contains("T")) {
+                    from = LocalDateTime.parse(fromDateParam.trim(), DateTimeFormatter.ISO_DATE_TIME);
+                } else {
+                    from = LocalDate.parse(fromDateParam.trim()).atStartOfDay();
+                }
+            } catch (Exception ignored) {}
+        }
+        if (toDateParam != null && !toDateParam.trim().isEmpty()) {
+            try {
+                if (toDateParam.contains("T")) {
+                    to = LocalDateTime.parse(toDateParam.trim(), DateTimeFormatter.ISO_DATE_TIME);
+                } else {
+                    to = LocalDate.parse(toDateParam.trim()).atTime(LocalTime.MAX);
+                }
+            } catch (Exception ignored) {}
+        }
+
+        return new DateRange(from, to, type, resolvedDate, resolvedMonth, resolvedYear);
+    }
+
+    public ReportResponse.RevenueReportData getRevenueReport(String typeParam, String dateParam, Integer monthParam, Integer yearParam, String fromDateParam, String toDateParam) {
+        DateRange dr = calculateDateRange(typeParam, dateParam, monthParam, yearParam, fromDateParam, toDateParam);
+
+        ReportResponse.RevenueSummaryDto summary = revenueRepository.getRevenueSummary(dr.from, dr.to);
+        List<ReportResponse.RevenueTimelineItemDto> timeline = revenueRepository.getRevenueTimeline(dr.from, dr.to, dr.type);
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+        ReportResponse.FilterDto filter = new ReportResponse.FilterDto(
+                dr.type,
+                dr.date,
+                dr.month,
+                dr.year,
+                dr.from.format(fmt),
+                dr.to.format(fmt)
+        );
+
+        return new ReportResponse.RevenueReportData(filter, summary, timeline);
+    }
+
+    public String exportExcel(String target, String receiptId, String typeParam, String dateParam, Integer monthParam, Integer yearParam, String fromDateParam, String toDateParam, OutputStream out) throws IOException {
+        DateRange dr = calculateDateRange(typeParam, dateParam, monthParam, yearParam, fromDateParam, toDateParam);
+        return excelExporter.exportExcel(target, receiptId, dr, out);
     }
 }

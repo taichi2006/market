@@ -1,6 +1,6 @@
 package com.mycompany.quanlysieuthi.modules.employee;
 
-import com.mycompany.quanlysieuthi.common.repository.BaseRepository;
+import com.mycompany.quanlysieuthi.common.base.BaseRepository;
 import com.mycompany.quanlysieuthi.entity.Employee;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
@@ -110,22 +110,9 @@ public class EmployeeRepository extends BaseRepository<Employee, String> {
         });
     }
 
-    public static class PageResult<T> {
-        private final List<T> items;
-        private final long totalElements;
-
-        public PageResult(List<T> items, long totalElements) {
-            this.items = items;
-            this.totalElements = totalElements;
-        }
-
-        public List<T> getItems() {
-            return items;
-        }
-
-        public long getTotalElements() {
-            return totalElements;
-        }
+    public record PageResult<T>(List<T> items, long totalElements) {
+        public List<T> getItems() { return items; }
+        public long getTotalElements() { return totalElements; }
     }
 
     public PageResult<Employee> findEmployees(int page, int limit, String keyword, String position, Boolean status) {

@@ -1,7 +1,7 @@
 package com.mycompany.quanlysieuthi.modules.employee;
 
 import com.mycompany.quanlysieuthi.entity.Employee;
-import com.mycompany.quanlysieuthi.util.ConflictException;
+import com.mycompany.quanlysieuthi.common.exception.AppException.*;
 import com.mycompany.quanlysieuthi.util.PageMeta;
 import com.mycompany.quanlysieuthi.util.PasswordUtil;
 

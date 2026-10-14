@@ -1,17 +1,12 @@
 package com.mycompany.quanlysieuthi.modules.report;
 
-import com.google.gson.JsonSyntaxException;
-import com.mycompany.quanlysieuthi.common.util.RequestUtil;
-import com.mycompany.quanlysieuthi.util.NotFoundException;
-import com.mycompany.quanlysieuthi.util.ResponseUtil;
-import io.jsonwebtoken.Claims;
+import com.mycompany.quanlysieuthi.common.base.BaseController;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.List;
 
 /**
  * Controller handling report endpoints:
@@ -20,7 +15,7 @@ import java.util.List;
  * GET  /api/report/stock-discrepancy/:id
  */
 @WebServlet(name = "ReportController", urlPatterns = {"/api/report/*", "/api/report"})
-public class ReportController extends HttpServlet {
+public class ReportController extends BaseController {
 
     private final ReportService reportService = new ReportService();
 
@@ -28,7 +23,7 @@ public class ReportController extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String pathInfo = req.getPathInfo();
         if (pathInfo == null) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found");
+            sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found");
             return;
         }
 
@@ -41,8 +36,12 @@ public class ReportController extends HttpServlet {
             } else {
                 handleGetStockDiscrepancyDetail(id, resp);
             }
+        } else if (pathInfo.equals("/revenue") || pathInfo.equals("/revenue/")) {
+            handleGetRevenueReport(req, resp);
+        } else if (pathInfo.equals("/export-excel") || pathInfo.equals("/export-excel/") || pathInfo.equals("/excel") || pathInfo.equals("/excel/")) {
+            handleExportExcel(req, resp);
         } else {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found: " + pathInfo);
+            sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found: " + pathInfo);
         }
     }
 
@@ -53,78 +52,124 @@ public class ReportController extends HttpServlet {
         if (pathInfo != null && (pathInfo.equals("/stock-discrepancy") || pathInfo.equals("/stock-discrepancy/"))) {
             handleCreateStockAudit(req, resp);
         } else {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found: " + pathInfo);
+            sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found: " + pathInfo);
         }
     }
 
     private void handleCreateStockAudit(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        try {
-            ReportRequest.StockAudit requestDto = RequestUtil.parseJson(req, ReportRequest.StockAudit.class);
+        handle(resp, HttpServletResponse.SC_CREATED, () -> {
+            ReportRequest.StockAudit requestDto = parseBody(req, ReportRequest.StockAudit.class);
             if (requestDto == null) {
-                ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Request body không được để trống");
-                return;
+                throw new IllegalArgumentException("Request body không được để trống");
             }
 
-            Claims claims = (Claims) req.getAttribute("currentUser");
-            String employeeId = claims != null ? claims.get("employeeId", String.class) : "";
-            String fullName = claims != null ? claims.get("fullName", String.class) : "";
+            String employeeId = getCurrentEmployeeId(req);
+            String fullName = getCurrentFullName(req);
 
-            ReportResponse.StockAuditResponse responseDto = reportService.createStockAuditReport(
+            return reportService.createStockAuditReport(
                     requestDto,
-                    employeeId,
-                    fullName
+                    employeeId != null ? employeeId : "",
+                    fullName != null ? fullName : ""
             );
-
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_CREATED,
-                    "Tạo báo cáo kiểm kê kho thành công, đã gửi yêu cầu xử lý đến Chủ cửa hàng", responseDto);
-
-        } catch (JsonSyntaxException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Malformed JSON payload: " + e.getMessage());
-        } catch (IllegalArgumentException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-        } catch (NotFoundException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
-        } catch (Exception e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống khi tạo biên bản kiểm kê kho: " + e.getMessage());
-        }
+        }, "Tạo báo cáo kiểm kê kho thành công, đã gửi yêu cầu xử lý đến Chủ cửa hàng", null);
     }
 
     private void handleGetStockDiscrepancyList(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        try {
-            int page = RequestUtil.parsePage(req);
-            int limit = RequestUtil.parseLimit(req);
+        handle(resp, () -> {
+            int page = parsePage(req);
+            int limit = parseLimit(req);
 
             String employeeId = req.getParameter("employeeId");
             String fromDate = req.getParameter("fromDate");
             String toDate = req.getParameter("toDate");
 
-            List<ReportResponse.ListItemDto> data = reportService.getStockDiscrepancyReports(
+            return reportService.getStockDiscrepancyReports(
                     page, limit, employeeId, fromDate, toDate
             );
-
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Lấy danh sách báo cáo kiểm kê kho thành công", data);
-
-        } catch (IllegalArgumentException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống khi lấy danh sách báo cáo kiểm kê kho: " + e.getMessage());
-        }
+        }, "Lấy danh sách báo cáo kiểm kê kho thành công");
     }
 
     private void handleGetStockDiscrepancyDetail(String id, HttpServletResponse resp) throws IOException {
-        try {
-            ReportResponse.DetailResponse data = reportService.getStockDiscrepancyDetail(id);
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Lấy chi tiết báo cáo kiểm kê kho thành công", data);
+        handle(resp, () -> reportService.getStockDiscrepancyDetail(id), "Lấy chi tiết báo cáo kiểm kê kho thành công");
+    }
 
-        } catch (IllegalArgumentException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
-        } catch (NotFoundException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, e.getMessage());
+    private void handleGetRevenueReport(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        handle(resp, () -> {
+            String type = req.getParameter("type");
+            String date = req.getParameter("date");
+            String monthStr = req.getParameter("month");
+            String yearStr = req.getParameter("year");
+            String fromDate = req.getParameter("fromDate");
+            String toDate = req.getParameter("toDate");
+
+            Integer month = null;
+            if (monthStr != null && !monthStr.trim().isEmpty()) {
+                try {
+                    month = Integer.parseInt(monthStr.trim());
+                } catch (NumberFormatException ignored) {}
+            }
+
+            Integer year = null;
+            if (yearStr != null && !yearStr.trim().isEmpty()) {
+                try {
+                    year = Integer.parseInt(yearStr.trim());
+                } catch (NumberFormatException ignored) {}
+            }
+
+            return reportService.getRevenueReport(type, date, month, year, fromDate, toDate);
+        }, "Lấy báo cáo doanh thu thành công");
+    }
+
+    private void handleExportExcel(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        try {
+            String target = req.getParameter("target");
+            if (target == null || target.trim().isEmpty()) {
+                target = req.getParameter("receiptType");
+            }
+            if (target == null || target.trim().isEmpty()) {
+                target = req.getParameter("type");
+            }
+
+            String receiptId = req.getParameter("receiptId");
+            if (receiptId == null || receiptId.trim().isEmpty()) {
+                receiptId = req.getParameter("id");
+            }
+
+            String filterType = req.getParameter("filterType");
+            if (filterType == null || filterType.trim().isEmpty()) {
+                filterType = req.getParameter("period");
+            }
+
+            String date = req.getParameter("date");
+            String monthStr = req.getParameter("month");
+            String yearStr = req.getParameter("year");
+            String fromDate = req.getParameter("fromDate");
+            String toDate = req.getParameter("toDate");
+
+            Integer month = null;
+            if (monthStr != null && !monthStr.trim().isEmpty()) {
+                try {
+                    month = Integer.parseInt(monthStr.trim());
+                } catch (NumberFormatException ignored) {}
+            }
+
+            Integer year = null;
+            if (yearStr != null && !yearStr.trim().isEmpty()) {
+                try {
+                    year = Integer.parseInt(yearStr.trim());
+                } catch (NumberFormatException ignored) {}
+            }
+
+            resp.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            String filename = reportService.exportExcel(target, receiptId, filterType, date, month, year, fromDate, toDate, baos);
+
+            resp.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+            resp.setContentLength(baos.size());
+            resp.getOutputStream().write(baos.toByteArray());
+            resp.getOutputStream().flush();
         } catch (Exception e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống khi lấy chi tiết báo cáo kiểm kê kho: " + e.getMessage());
+            sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Lỗi khi xuất file Excel: " + e.getMessage());
         }
     }
 }

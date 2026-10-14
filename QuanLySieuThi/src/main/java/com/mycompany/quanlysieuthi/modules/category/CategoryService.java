@@ -1,9 +1,8 @@
 package com.mycompany.quanlysieuthi.modules.category;
 
 import com.mycompany.quanlysieuthi.entity.ProductCategory;
-import com.mycompany.quanlysieuthi.util.ConflictException;
+import com.mycompany.quanlysieuthi.common.exception.AppException.*;
 import com.mycompany.quanlysieuthi.util.IdGenerator;
-import com.mycompany.quanlysieuthi.util.NotFoundException;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

@@ -58,22 +58,25 @@ public final class IdGenerator {
 
         EntityManager em = JpaUtil.getEntityManager();
         try {
-            String jpql = "SELECT e." + idFieldName + " FROM " + entityClass.getSimpleName() + " e WHERE e." + idFieldName + " LIKE :pattern";
-            List<String> existingIds = em.createQuery(jpql, String.class)
+            // Tối ưu trực tiếp từ SQL: Sắp xếp theo độ dài và thứ tự giảm dần, chỉ lấy đúng 1 bản ghi lớn nhất từ Database
+            String jpql = "SELECT e." + idFieldName + " FROM " + entityClass.getSimpleName() + " e " +
+                          "WHERE e." + idFieldName + " LIKE :pattern " +
+                          "ORDER BY LENGTH(e." + idFieldName + ") DESC, e." + idFieldName + " DESC";
+
+            List<String> maxIdList = em.createQuery(jpql, String.class)
                     .setParameter("pattern", prefix + "%")
+                    .setMaxResults(1)
                     .getResultList();
 
             long maxNumber = 0;
-            for (String id : existingIds) {
-                if (id != null && id.startsWith(prefix)) {
-                    String numPart = id.substring(prefix.length()).trim();
+            if (!maxIdList.isEmpty() && maxIdList.get(0) != null) {
+                String latestId = maxIdList.get(0).trim();
+                if (latestId.startsWith(prefix)) {
+                    String numPart = latestId.substring(prefix.length()).trim();
                     try {
-                        long val = Long.parseLong(numPart);
-                        if (val > maxNumber) {
-                            maxNumber = val;
-                        }
+                        maxNumber = Long.parseLong(numPart);
                     } catch (NumberFormatException ignored) {
-                        // Bo qua neu phan duoi khong phai la so nguyen
+                        // Bỏ qua nếu phần sau tiền tố không phải số
                     }
                 }
             }

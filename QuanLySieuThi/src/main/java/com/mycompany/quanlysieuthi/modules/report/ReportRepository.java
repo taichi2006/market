@@ -1,20 +1,24 @@
 package com.mycompany.quanlysieuthi.modules.report;
 
-import com.mycompany.quanlysieuthi.common.repository.BaseRepository;
+import com.mycompany.quanlysieuthi.common.base.BaseRepository;
 import com.mycompany.quanlysieuthi.config.JpaUtil;
 import com.mycompany.quanlysieuthi.entity.InventoryReport;
 import com.mycompany.quanlysieuthi.entity.InventoryReportDetail;
 import com.mycompany.quanlysieuthi.entity.Product;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityTransaction;
+import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 
 /**
  * Repository handling database operations for Report module.
@@ -253,4 +257,5 @@ public class ReportRepository extends BaseRepository<InventoryReport, String> {
             em.close();
         }
     }
+
 }

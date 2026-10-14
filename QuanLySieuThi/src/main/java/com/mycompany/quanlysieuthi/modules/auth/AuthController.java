@@ -1,18 +1,16 @@
 package com.mycompany.quanlysieuthi.modules.auth;
 
 import com.google.gson.JsonSyntaxException;
-import com.mycompany.quanlysieuthi.common.util.RequestUtil;
+import com.mycompany.quanlysieuthi.common.base.BaseController;
 import com.mycompany.quanlysieuthi.util.CookieUtil;
-import com.mycompany.quanlysieuthi.util.ResponseUtil;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 
 @WebServlet(name = "AuthController", urlPatterns = { "/api/auth/*" })
-public class AuthController extends HttpServlet {
+public class AuthController extends BaseController {
 
     private final AuthService authService = new AuthService();
 
@@ -33,15 +31,15 @@ public class AuthController extends HttpServlet {
         } else if ("/refresh".equalsIgnoreCase(path)) {
             handleRefresh(req, resp);
         } else {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found: " + path);
+            sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found: " + path);
         }
     }
 
     private void handleLogin(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
-            AuthRequest.Login loginRequest = RequestUtil.parseJson(req, AuthRequest.Login.class);
+            AuthRequest.Login loginRequest = parseBody(req, AuthRequest.Login.class);
             if (loginRequest == null) {
-                ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "thiếu input");
+                sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "thiếu input");
                 return;
             }
 
@@ -51,17 +49,16 @@ public class AuthController extends HttpServlet {
             CookieUtil.addRefreshTokenCookie(req, resp, result.getRefreshToken());
 
             // Access Token trả về trong Response Body
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Đăng nhập thành công", result.getResponseData());
+            sendSuccess(resp, "Đăng nhập thành công", result.getResponseData());
 
         } catch (JsonSyntaxException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "thiếu input");
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "thiếu input");
         } catch (IllegalArgumentException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         } catch (SecurityException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+            sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
         } catch (Exception e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống: " + e.getMessage());
+            sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Lỗi hệ thống: " + e.getMessage());
         }
     }
 
@@ -69,14 +66,10 @@ public class AuthController extends HttpServlet {
         try {
             String refreshToken = CookieUtil.getCookieValue(req, CookieUtil.REFRESH_TOKEN_COOKIE_NAME);
             authService.logout(refreshToken);
-
+        } finally {
             // Xóa refreshtoken khỏi cookie
             CookieUtil.deleteRefreshTokenCookie(req, resp);
-
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Đăng xuất thành công");
-        } catch (Exception e) {
-            CookieUtil.deleteRefreshTokenCookie(req, resp);
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, "Đăng xuất thành công");
+            sendSuccess(resp, "Đăng xuất thành công", null);
         }
     }
 
@@ -85,22 +78,21 @@ public class AuthController extends HttpServlet {
             String refreshToken = CookieUtil.getCookieValue(req, CookieUtil.REFRESH_TOKEN_COOKIE_NAME);
 
             if (refreshToken == null || refreshToken.trim().isEmpty()) {
-                ResponseUtil.sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, "không tìm thấy token trong cookie");
+                sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, "không tìm thấy token trong cookie");
                 return;
             }
 
             String newAccessToken = authService.refresh(refreshToken);
             AuthResponse.RefreshResponseData responseData = new AuthResponse.RefreshResponseData(newAccessToken);
 
-            ResponseUtil.sendSuccess(resp, HttpServletResponse.SC_OK, responseData);
+            sendSuccess(resp, "Refresh token thành công", responseData);
 
         } catch (IllegalArgumentException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+            sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
         } catch (SecurityException e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
+            sendError(resp, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
         } catch (Exception e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống: " + e.getMessage());
+            sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Lỗi hệ thống: " + e.getMessage());
         }
     }
 }
