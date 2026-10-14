@@ -1,0 +1,19 @@
+﻿$kind: http-request
+name: "6.2 Lay danh sach phieu nhap hang"
+description: Danh sach phieu nhap kem tong tien va nguoi tao
+url: "{{baseUrl}}/purchase-receipt?page=1&limit=10"
+method: GET
+queryParams:
+  page: "1"
+  limit: "10"
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 2000
+

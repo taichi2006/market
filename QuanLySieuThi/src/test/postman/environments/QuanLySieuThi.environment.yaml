@@ -1,0 +1,45 @@
+﻿$kind: environment
+name: QuanLySieuThi Environment
+values:
+  - key: baseUrl
+    value: http://localhost:8080/QuanLySieuThi/api
+    enabled: true
+  - key: accessToken
+    value: ""
+    enabled: true
+  - key: adminToken
+    value: ""
+    enabled: true
+  - key: cashierToken
+    value: ""
+    enabled: true
+  - key: warehouseToken
+    value: ""
+    enabled: true
+  - key: employeeId
+    value: NV000001
+    enabled: true
+  - key: categoryId
+    value: LSP001
+    enabled: true
+  - key: productId
+    value: SP000001
+    enabled: true
+  - key: customerId
+    value: KH000001
+    enabled: true
+  - key: voucherId
+    value: PN000001
+    enabled: true
+  - key: invoiceId
+    value: HD000001
+    enabled: true
+  - key: returnReceiptId
+    value: TH000001
+    enabled: true
+  - key: reportId
+    value: KK000001
+    enabled: true
+  - key: feedbackId
+    value: DG000001
+    enabled: true

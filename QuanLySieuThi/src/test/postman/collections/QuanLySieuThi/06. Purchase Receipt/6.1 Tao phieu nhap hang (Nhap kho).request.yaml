@@ -1,0 +1,39 @@
+﻿$kind: http-request
+name: "6.1 Tao phieu nhap hang (Nhap kho)"
+description: Nhap mat hang vao kho, tu dong tang ton kho
+url: "{{baseUrl}}/purchase-receipt"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "supplierName": "Coca-Cola VN",
+      "items": [
+        {
+          "productId": "SP000001",
+          "productName": "Nuoc ngot Coca-Cola 320ml",
+          "categoryId": "LSP001",
+          "unitPrice": 10000.00,
+          "purchasedQuantity": 100,
+          "purchasePrice": 7500.00,
+          "expirationDate": "2027-01-01"
+        }
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 201 or 200", function () { pm.expect([200, 201]).to.include(pm.response.code); });
+      var res = pm.response.json();
+      if (res.data && res.data.voucherId) {
+          pm.collectionVariables.set("voucherId", res.data.voucherId);
+      }
+    language: text/javascript
+order: 1000
+

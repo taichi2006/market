@@ -1,0 +1,19 @@
+﻿$kind: http-request
+name: "11.2 Xem danh sach danh gia va thong ke so sao"
+description: Admin xem danh sach danh gia kem bang tong hop ty le so sao
+url: "{{baseUrl}}/feedback?page=1&limit=10"
+method: GET
+queryParams:
+  page: "1"
+  limit: "10"
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 2000
+

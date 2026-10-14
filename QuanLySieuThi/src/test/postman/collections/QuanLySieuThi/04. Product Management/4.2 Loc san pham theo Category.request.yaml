@@ -1,0 +1,20 @@
+﻿$kind: http-request
+name: "4.2 Loc san pham theo Category"
+description: Loc danh sach san pham thuoc loai LSP001
+url: "{{baseUrl}}/product?categoryId={{categoryId}}&page=1&limit=5"
+method: GET
+queryParams:
+  limit: "5"
+  categoryId: "{{categoryId}}"
+  page: "1"
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 2000
+

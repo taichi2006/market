@@ -1,0 +1,29 @@
+﻿$kind: http-request
+name: "2.4 Tao moi nhan vien"
+description: Tao tai khoan nhan vien moi (Quyen STORE_OWNER)
+url: "{{baseUrl}}/employee"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fullName": "Le Van Kho Test",
+      "username": "inventory_test",
+      "password": "Password@123",
+      "phoneNumber": "0912345678",
+      "position": "INVENTORY_MANAGER",
+      "status": true
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 201 or 409", function () { pm.expect([201, 200, 409]).to.include(pm.response.code); });
+    language: text/javascript
+order: 4000
+

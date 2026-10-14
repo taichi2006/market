@@ -1,0 +1,28 @@
+﻿$kind: http-request
+name: "2.5 Cap nhat thong tin nhan vien"
+description: Cap nhat ho ten, so dien thoai, trang thai nhan vien
+url: "{{baseUrl}}/employee/{{employeeId}}"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fullName": "Nguyen Van Quan Ly (Updated)",
+      "username": "admin",
+      "phoneNumber": "0901234567",
+      "position": "STORE_OWNER",
+      "status": true
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 5000
+

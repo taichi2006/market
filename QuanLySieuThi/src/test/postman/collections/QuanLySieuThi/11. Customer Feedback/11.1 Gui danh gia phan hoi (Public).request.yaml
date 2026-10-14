@@ -1,0 +1,29 @@
+﻿$kind: http-request
+name: "11.1 Gui danh gia phan hoi (Public)"
+description: Khach hang gui danh gia rating va loi nhan
+url: "{{baseUrl}}/feedback"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "customerName": "Khach hang than thiet",
+      "phoneNumber": "0909123456",
+      "rating": 5,
+      "comment": "Dich vu thanh toan rat nhanh, nhan vien than thien va nhiet tinh!"
+    }
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 201 or 200", function () { pm.expect([200, 201]).to.include(pm.response.code); });
+      var res = pm.response.json();
+      if (res.data && res.data.feedbackId) {
+          pm.collectionVariables.set("feedbackId", res.data.feedbackId);
+      }
+    language: text/javascript
+order: 1000
+

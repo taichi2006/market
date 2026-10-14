@@ -1,0 +1,20 @@
+﻿$kind: http-request
+name: "1.5 Logout"
+description: Dang xuat khoi he thong, huy cookie refreshToken
+url: "{{baseUrl}}/auth/logout"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {}
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 5000
+

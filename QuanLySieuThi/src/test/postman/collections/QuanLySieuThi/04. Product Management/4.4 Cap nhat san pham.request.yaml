@@ -1,0 +1,27 @@
+﻿$kind: http-request
+name: "4.4 Cap nhat san pham"
+description: Cap nhat gia ban, ten san pham va trang thai
+url: "{{baseUrl}}/product/{{productId}}"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "productName": "Nuoc ngot Coca-Cola 330ml Lon Sleek",
+      "categoryId": "LSP001",
+      "unitPrice": 11000.00,
+      "productStatus": "ON_SALE"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 4000
+

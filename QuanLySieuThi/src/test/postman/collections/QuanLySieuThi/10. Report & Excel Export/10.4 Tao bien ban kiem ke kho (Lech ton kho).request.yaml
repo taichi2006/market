@@ -1,0 +1,36 @@
+﻿$kind: http-request
+name: "10.4 Tao bien ban kiem ke kho (Lech ton kho)"
+description: Ghi nhan chenh lech ton kho thuc te so voi he thong
+url: "{{baseUrl}}/report/stock-discrepancy"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "auditTitle": "Kiem ke kho dinh ky giua thang 10",
+      "note": "Kiem tra hu hong va han su dung",
+      "items": [
+        {
+          "productId": "SP000001",
+          "actualQuantity": 145,
+          "reason": "Hu hong be 5 hop trong qua trinh xep ke"
+        }
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 201 or 200", function () { pm.expect([200, 201]).to.include(pm.response.code); });
+      var res = pm.response.json();
+      if (res.data && res.data.reportId) {
+          pm.collectionVariables.set("reportId", res.data.reportId);
+      }
+    language: text/javascript
+order: 4000
+

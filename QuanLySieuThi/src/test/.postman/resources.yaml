@@ -1,0 +1,8 @@
+﻿workspace:
+  id: af776424-104a-440a-b14d-a076fd7aeff0
+
+cloudResources:
+  collections:
+    ../postman/collections/QuanLySieuThi: b5b03bca-ccbd-4c8a-91c3-2b37e7c086bb
+  environments:
+    ../postman/environments/QuanLySieuThi.environment.yaml: ""

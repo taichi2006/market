@@ -1,0 +1,19 @@
+﻿$kind: http-request
+name: "10.3 Xuat file Excel phieu nhap hang (Export Excel)"
+description: Xuat file Excel binary stream cho phieu nhap hang
+url: "{{baseUrl}}/report/export-excel?target=PURCHASE&receiptId=PN000001"
+method: GET
+queryParams:
+  target: "PURCHASE"
+  receiptId: "PN000001"
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 or 404", function () { pm.expect([200, 404]).to.include(pm.response.code); });
+    language: text/javascript
+order: 3000
+

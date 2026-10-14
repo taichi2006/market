@@ -1,0 +1,29 @@
+﻿$kind: http-request
+name: "1.3 Login - INVENTORY_MANAGER (Thu kho)"
+description: Dang nhap tai khoan Thu kho (INVENTORY_MANAGER)
+url: "{{baseUrl}}/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "username": "warehouse01",
+      "password": "Password@123"
+    }
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      if (pm.response.code === 200) {
+          var res = pm.response.json();
+          if (res.data && res.data.accessToken) {
+              pm.collectionVariables.set("warehouseToken", res.data.accessToken);
+          }
+      }
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 3000
+

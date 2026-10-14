@@ -1,0 +1,20 @@
+﻿$kind: http-request
+name: "10.2 Bao cao doanh thu theo thang (MONTHLY)"
+description: Bao cao doanh thu tong hop theo thang
+url: "{{baseUrl}}/report/revenue?type=MONTHLY&month=10&year=2026"
+method: GET
+queryParams:
+  year: "2026"
+  type: "MONTHLY"
+  month: "10"
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 2000
+

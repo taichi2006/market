@@ -1,0 +1,20 @@
+﻿$kind: http-request
+name: "7.2 Lay danh sach hoa don"
+description: Danh sach hoa don ban hang kem trang thai
+url: "{{baseUrl}}/invoice?page=1&limit=10&status=PENDING"
+method: GET
+queryParams:
+  status: "PENDING"
+  limit: "10"
+  page: "1"
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 2000
+

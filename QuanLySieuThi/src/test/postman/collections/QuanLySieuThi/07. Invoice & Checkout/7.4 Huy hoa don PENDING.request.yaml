@@ -1,0 +1,16 @@
+﻿$kind: http-request
+name: "7.4 Huy hoa don PENDING"
+description: Huy hoa don chua thanh toan va hoan tra ton kho
+url: "{{baseUrl}}/invoice/{{invoiceId}}"
+method: DELETE
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 or 404", function () { pm.expect([200, 404]).to.include(pm.response.code); });
+    language: text/javascript
+order: 4000
+

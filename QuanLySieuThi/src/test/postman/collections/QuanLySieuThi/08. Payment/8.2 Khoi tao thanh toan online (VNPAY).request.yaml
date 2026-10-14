@@ -1,0 +1,25 @@
+﻿$kind: http-request
+name: "8.2 Khoi tao thanh toan online (VNPAY)"
+description: Sinh URL thanh toan VNPAY de FE redirect
+url: "{{baseUrl}}/payment/process"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "invoiceId": "HD000001",
+      "paymentMethod": "VNPAY"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 or 400", function () { pm.expect([200, 400]).to.include(pm.response.code); });
+    language: text/javascript
+order: 2000
+

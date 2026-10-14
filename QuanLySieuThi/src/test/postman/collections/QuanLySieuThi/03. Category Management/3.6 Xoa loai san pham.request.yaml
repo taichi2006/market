@@ -1,0 +1,13 @@
+$kind: http-request
+description: Xoa loai san pham (Bao loi 409 neu dang co san pham)
+url: "{{baseUrl}}/category/{{categoryId}}"
+method: DELETE
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: pm.test("Status code is 200 or 409", function () { pm.expect([200, 409]).to.include(pm.response.code); });
+    language: text/javascript
+order: 6000

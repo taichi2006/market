@@ -1,0 +1,16 @@
+﻿$kind: http-request
+name: "7.3 Chi tiet hoa don"
+description: Chi tiet cac mat hang trong hoa don
+url: "{{baseUrl}}/invoice/{{invoiceId}}"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 3000
+

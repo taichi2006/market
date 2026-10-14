@@ -1,0 +1,35 @@
+﻿$kind: http-request
+name: "9.1 Tao phieu tra hang"
+description: Lap phieu tra hang tu hoa don da thanh toan
+url: "{{baseUrl}}/return-receipt"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "invoiceId": "HD000001",
+      "reason": "Khach mua nham loai san pham, hang con nguyen tem",
+      "items": [
+        {
+          "productId": "SP000001",
+          "returnedQuantity": 1
+        }
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 201 or 400", function () { pm.expect([200, 201, 400, 409]).to.include(pm.response.code); });
+      var res = pm.response.json();
+      if (res.data && res.data.returnReceiptId) {
+          pm.collectionVariables.set("returnReceiptId", res.data.returnReceiptId);
+      }
+    language: text/javascript
+order: 1000
+

@@ -1,0 +1,29 @@
+﻿$kind: http-request
+name: "1.2 Login - CASHIER (Thu ngan)"
+description: Dang nhap tai khoan Thu ngan (CASHIER)
+url: "{{baseUrl}}/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "username": "cashier01",
+      "password": "Password@123"
+    }
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      if (pm.response.code === 200) {
+          var res = pm.response.json();
+          if (res.data && res.data.accessToken) {
+              pm.collectionVariables.set("cashierToken", res.data.accessToken);
+          }
+      }
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 2000
+

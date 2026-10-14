@@ -1,0 +1,16 @@
+﻿$kind: http-request
+name: "6.3 Chi tiet phieu nhap hang"
+description: Chi tiet danh sach mat hang trong phieu nhap
+url: "{{baseUrl}}/purchase-receipt/{{voucherId}}"
+method: GET
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 3000
+

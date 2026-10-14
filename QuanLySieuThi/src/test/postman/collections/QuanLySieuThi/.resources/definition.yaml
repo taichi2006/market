@@ -1,0 +1,23 @@
+$kind: collection
+description: |-
+  Tai lieu Postman Collection day du cho He Thong Quan Ly Sieu Thi Mini Backend.
+  Bao gom 11 module chuc nang chuan hoa theo API_DOCUMENTATION.md.
+variables:
+  baseUrl: http://localhost:8080/QuanLySieuThi/api
+  accessToken: ""
+  adminToken: ""
+  cashierToken: ""
+  warehouseToken: ""
+  employeeId: NV000001
+  categoryId: LSP001
+  productId: SP000001
+  customerId: KH000001
+  voucherId: PN000001
+  invoiceId: HD000001
+  returnReceiptId: TH000001
+  reportId: KK000001
+  feedbackId: DG000001
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"

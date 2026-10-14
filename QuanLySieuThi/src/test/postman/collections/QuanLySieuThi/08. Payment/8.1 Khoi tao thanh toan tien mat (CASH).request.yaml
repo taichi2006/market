@@ -1,0 +1,25 @@
+﻿$kind: http-request
+name: "8.1 Khoi tao thanh toan tien mat (CASH)"
+description: Xac nhan thanh toan tien mat cho hoa don
+url: "{{baseUrl}}/payment/process"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "invoiceId": "HD000001",
+      "paymentMethod": "CASH"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200 or 400", function () { pm.expect([200, 400]).to.include(pm.response.code); });
+    language: text/javascript
+order: 1000
+

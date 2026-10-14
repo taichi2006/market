@@ -1,0 +1,28 @@
+﻿$kind: http-request
+name: "3.4 Tao loai san pham moi"
+description: Tao loai san pham moi (Quyen STORE_OWNER)
+url: "{{baseUrl}}/category"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "categoryName": "Thuc pham dong hop"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 201 or 200", function () { pm.expect([200, 201]).to.include(pm.response.code); });
+      var res = pm.response.json();
+      if (res.data && res.data.categoryId) {
+          pm.collectionVariables.set("categoryId", res.data.categoryId);
+      }
+    language: text/javascript
+order: 4000
+

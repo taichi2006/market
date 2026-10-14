@@ -1,0 +1,19 @@
+﻿$kind: http-request
+name: "5.3 Xem lich su hoa don mua hang cua khach hang"
+description: Lich su cac don hang da mua boi khach hang
+url: "{{baseUrl}}/customer/{{customerId}}/invoices?page=1&limit=10"
+method: GET
+queryParams:
+  page: "1"
+  limit: "10"
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 3000
+

@@ -1,0 +1,24 @@
+﻿$kind: http-request
+name: "3.5 Cap nhat loai san pham"
+description: Cap nhat ten loai san pham
+url: "{{baseUrl}}/category/{{categoryId}}"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "categoryName": "Thuc pham dong hop & Do kho"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 5000
+

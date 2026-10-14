@@ -1,0 +1,35 @@
+﻿$kind: http-request
+name: "7.1 Tao hoa don ban hang (POS Checkout)"
+description: Tao hoa don ban hang, tu dong tru kho
+url: "{{baseUrl}}/invoice"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "customerId": "KH000001",
+      "useLoyaltyPoints": true,
+      "items": [
+        {
+          "productId": "SP000001",
+          "quantity": 5
+        }
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 201 or 200", function () { pm.expect([200, 201]).to.include(pm.response.code); });
+      var res = pm.response.json();
+      if (res.data && res.data.invoiceId) {
+          pm.collectionVariables.set("invoiceId", res.data.invoiceId);
+      }
+    language: text/javascript
+order: 1000
+

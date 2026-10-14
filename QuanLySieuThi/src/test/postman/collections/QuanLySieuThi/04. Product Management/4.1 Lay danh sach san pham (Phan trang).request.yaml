@@ -1,0 +1,19 @@
+﻿$kind: http-request
+name: "4.1 Lay danh sach san pham (Phan trang)"
+description: Lay danh sach san pham, ho tro loc theo ten va loai san pham
+url: "{{baseUrl}}/product?page=1&limit=10"
+method: GET
+queryParams:
+  page: "1"
+  limit: "10"
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 1000
+

@@ -1,0 +1,30 @@
+﻿$kind: http-request
+name: "5.2 Tao moi khach hang"
+description: Them khach hang moi vao he thong
+url: "{{baseUrl}}/customer"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fullName": "Pham Minh Thu",
+      "phoneNumber": "0938112233",
+      "email": "thu@gmail.com"
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Status code is 201 or 409", function () { pm.expect([201, 200, 409]).to.include(pm.response.code); });
+      var res = pm.response.json();
+      if (res.data && res.data.customerId) {
+          pm.collectionVariables.set("customerId", res.data.customerId);
+      }
+    language: text/javascript
+order: 2000
+

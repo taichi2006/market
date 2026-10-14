@@ -1,0 +1,35 @@
+﻿$kind: http-request
+name: "1.1 Login - STORE_OWNER (Admin)"
+description: Dang nhap tai khoan Chu cua hang (STORE_OWNER)
+url: "{{baseUrl}}/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "username": "admin",
+      "password": "Password@123"
+    }
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    code: |-
+      if (pm.response.code === 200) {
+          var res = pm.response.json();
+          if (res.data && res.data.accessToken) {
+              pm.collectionVariables.set("accessToken", res.data.accessToken);
+              pm.collectionVariables.set("adminToken", res.data.accessToken);
+              console.log("Da luu accessToken Admin:", res.data.accessToken.substring(0, 15) + "...");
+          }
+      }
+      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+      pm.test("Position la STORE_OWNER", function () {
+          var res = pm.response.json();
+          pm.expect(res.data.employee.position).to.eql("STORE_OWNER");
+      });
+    language: text/javascript
+order: 1000
+
