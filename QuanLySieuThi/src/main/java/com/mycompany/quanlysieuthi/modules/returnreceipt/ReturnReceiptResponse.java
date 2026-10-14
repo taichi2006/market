@@ -82,13 +82,35 @@ public class ReturnReceiptResponse implements Serializable {
         public EmployeeDto(String employeeId, String fullName) {
             this(employeeId, fullName, null);
         }
+        public String getEmployeeId() { return employeeId; }
+        public String getFullName() { return fullName; }
+        public String getUsername() { return username; }
     }
 
-    public record CustomerDto(String customerId, String fullName, String phoneNumber) implements Serializable {}
+    public record CustomerDto(String customerId, String fullName, String phoneNumber) implements Serializable {
+        public String getCustomerId() { return customerId; }
+        public String getFullName() { return fullName; }
+        public String getPhoneNumber() { return phoneNumber; }
+    }
 
     public record ListItemDto(String returnReceiptId, String invoiceId, BigDecimal refundAmount,
-                              String reason, String createdAt, EmployeeDto createdBy) implements Serializable {}
+                              String reason, String createdAt, EmployeeDto createdBy) implements Serializable {
+        public String getReturnReceiptId() { return returnReceiptId; }
+        public String getInvoiceId() { return invoiceId; }
+        public BigDecimal getRefundAmount() { return refundAmount; }
+        public String getReason() { return reason; }
+        public String getCreatedAt() { return createdAt; }
+        public EmployeeDto getCreatedBy() { return createdBy; }
+    }
 
     public record DetailResponse(String returnReceiptId, String invoiceId, BigDecimal refundAmount,
-                                 String reason, String createdAt, EmployeeDto createdBy, CustomerDto customer) implements Serializable {}
+                                 String reason, String createdAt, EmployeeDto createdBy, CustomerDto customer) implements Serializable {
+        public String getReturnReceiptId() { return returnReceiptId; }
+        public String getInvoiceId() { return invoiceId; }
+        public BigDecimal getRefundAmount() { return refundAmount; }
+        public String getReason() { return reason; }
+        public String getCreatedAt() { return createdAt; }
+        public EmployeeDto getCreatedBy() { return createdBy; }
+        public CustomerDto getCustomer() { return customer; }
+    }
 }

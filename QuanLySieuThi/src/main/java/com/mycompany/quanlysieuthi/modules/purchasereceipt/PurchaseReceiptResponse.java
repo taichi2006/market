@@ -83,17 +83,50 @@ public class PurchaseReceiptResponse implements Serializable {
         public EmployeeDto(String employeeId, String fullName) {
             this(employeeId, fullName, null);
         }
+        public String getEmployeeId() { return employeeId; }
+        public String getFullName() { return fullName; }
+        public String getUsername() { return username; }
     }
 
     public record CreatedProductDto(String productId, String productName, String categoryId, BigDecimal unitPrice,
-                                    Integer stockQuantity, String expirationDate, String productStatus) implements Serializable {}
+                                    Integer stockQuantity, String expirationDate, String productStatus) implements Serializable {
+        public String getProductId() { return productId; }
+        public String getProductName() { return productName; }
+        public String getCategoryId() { return categoryId; }
+        public BigDecimal getUnitPrice() { return unitPrice; }
+        public Integer getStockQuantity() { return stockQuantity; }
+        public String getExpirationDate() { return expirationDate; }
+        public String getProductStatus() { return productStatus; }
+    }
 
     public record ListItemDto(String voucherId, String supplierName, BigDecimal totalAmount, String createdAt,
-                              EmployeeDto createdBy) implements Serializable {}
+                              EmployeeDto createdBy) implements Serializable {
+        public String getVoucherId() { return voucherId; }
+        public String getSupplierName() { return supplierName; }
+        public BigDecimal getTotalAmount() { return totalAmount; }
+        public String getCreatedAt() { return createdAt; }
+        public EmployeeDto getCreatedBy() { return createdBy; }
+    }
 
     public record ItemDetailDto(String purchaseDetailId, String productId, String productName, String categoryName,
-                                Integer purchasedQuantity, BigDecimal purchasePrice, BigDecimal lineTotal, String expirationDate) implements Serializable {}
+                                Integer purchasedQuantity, BigDecimal purchasePrice, BigDecimal lineTotal, String expirationDate) implements Serializable {
+        public String getPurchaseDetailId() { return purchaseDetailId; }
+        public String getProductId() { return productId; }
+        public String getProductName() { return productName; }
+        public String getCategoryName() { return categoryName; }
+        public Integer getPurchasedQuantity() { return purchasedQuantity; }
+        public BigDecimal getPurchasePrice() { return purchasePrice; }
+        public BigDecimal getLineTotal() { return lineTotal; }
+        public String getExpirationDate() { return expirationDate; }
+    }
 
     public record DetailResponse(String voucherId, String supplierName, BigDecimal totalAmount, String createdAt,
-                                 EmployeeDto createdBy, List<ItemDetailDto> items) implements Serializable {}
+                                 EmployeeDto createdBy, List<ItemDetailDto> items) implements Serializable {
+        public String getVoucherId() { return voucherId; }
+        public String getSupplierName() { return supplierName; }
+        public BigDecimal getTotalAmount() { return totalAmount; }
+        public String getCreatedAt() { return createdAt; }
+        public EmployeeDto getCreatedBy() { return createdBy; }
+        public List<ItemDetailDto> getItems() { return items; }
+    }
 }

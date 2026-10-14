@@ -123,8 +123,8 @@ public class ReturnReceiptService {
 
         ReturnReceipt receipt = new ReturnReceipt(
                 returnReceiptId,
-                currentEmployeeId != null ? currentEmployeeId : "",
                 invoiceId,
+                currentEmployeeId != null ? currentEmployeeId : "",
                 refundAmount,
                 reason,
                 now

@@ -88,10 +88,26 @@ public class ProductResponse implements Serializable {
         this.category = category;
     }
 
-    public record CategoryDto(String categoryId, String categoryName) implements Serializable {}
+    public record CategoryDto(String categoryId, String categoryName) implements Serializable {
+        public String getCategoryId() { return categoryId; }
+        public String getCategoryName() { return categoryName; }
+    }
 
-    public record LowStockDto(String productId, String productName, Integer stockQuantity, CategoryDto category) implements Serializable {}
+    public record LowStockDto(String productId, String productName, Integer stockQuantity, CategoryDto category) implements Serializable {
+        public String getProductId() { return productId; }
+        public String getProductName() { return productName; }
+        public Integer getStockQuantity() { return stockQuantity; }
+        public CategoryDto getCategory() { return category; }
+    }
 
     public record UpdateResponseDto(String productId, String productName, BigDecimal unitPrice, Integer stockQuantity,
-                                    String expirationDate, String productStatus, CategoryDto category) implements Serializable {}
+                                    String expirationDate, String productStatus, CategoryDto category) implements Serializable {
+        public String getProductId() { return productId; }
+        public String getProductName() { return productName; }
+        public BigDecimal getUnitPrice() { return unitPrice; }
+        public Integer getStockQuantity() { return stockQuantity; }
+        public String getExpirationDate() { return expirationDate; }
+        public String getProductStatus() { return productStatus; }
+        public CategoryDto getCategory() { return category; }
+    }
 }

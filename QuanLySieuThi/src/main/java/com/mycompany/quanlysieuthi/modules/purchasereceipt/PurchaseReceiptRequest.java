@@ -40,6 +40,9 @@ public class PurchaseReceiptRequest implements Serializable {
 
     public record Item(String productId, String productName, String categoryId, BigDecimal unitPrice,
                        Integer purchasedQuantity, BigDecimal purchasePrice, String expirationDate) implements Serializable {
+        public Item() {
+            this(null, null, null, null, null, null, null);
+        }
         public String getProductId() { return productId; }
         public String getProductName() { return productName; }
         public String getCategoryId() { return categoryId; }

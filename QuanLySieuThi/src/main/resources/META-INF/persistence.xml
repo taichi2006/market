@@ -22,6 +22,8 @@
         <class>com.mycompany.quanlysieuthi.entity.Payment</class>
         <class>com.mycompany.quanlysieuthi.entity.ReturnReceipt</class>
         <class>com.mycompany.quanlysieuthi.entity.Feedback</class>
+        <class>com.mycompany.quanlysieuthi.entity.DisposalReceipt</class>
+        <class>com.mycompany.quanlysieuthi.entity.DisposalReceiptDetail</class>
 
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
 

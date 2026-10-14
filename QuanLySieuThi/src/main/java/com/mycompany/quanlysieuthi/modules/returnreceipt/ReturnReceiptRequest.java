@@ -16,8 +16,45 @@ public class ReturnReceiptRequest implements Serializable {
         public List<Item> getItems() { return items; }
     }
 
-    public record Item(String productId, Integer returnedQuantity) implements Serializable {
-        public String getProductId() { return productId; }
-        public Integer getReturnedQuantity() { return returnedQuantity; }
+    public static class Item implements Serializable {
+        private String productId;
+        private Integer returnedQuantity;
+        private Integer returnQuantity;
+
+        public Item() {
+        }
+
+        public Item(String productId, Integer returnedQuantity) {
+            this.productId = productId;
+            this.returnedQuantity = returnedQuantity;
+            this.returnQuantity = returnedQuantity;
+        }
+
+        public String getProductId() {
+            return productId;
+        }
+
+        public void setProductId(String productId) {
+            this.productId = productId;
+        }
+
+        public Integer getReturnedQuantity() {
+            if (returnedQuantity != null) {
+                return returnedQuantity;
+            }
+            return returnQuantity;
+        }
+
+        public void setReturnedQuantity(Integer returnedQuantity) {
+            this.returnedQuantity = returnedQuantity;
+        }
+
+        public Integer getReturnQuantity() {
+            return getReturnedQuantity();
+        }
+
+        public void setReturnQuantity(Integer returnQuantity) {
+            this.returnQuantity = returnQuantity;
+        }
     }
 }

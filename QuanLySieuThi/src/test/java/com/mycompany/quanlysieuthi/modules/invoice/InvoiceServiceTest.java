@@ -209,34 +209,34 @@ class InvoiceServiceTest {
         }
 
         @Test
-        @DisplayName("Tạo hóa đơn thành công có áp dụng điểm thưởng giảm giá (>= 100,000 điểm)")
+        @DisplayName("Tạo hóa đơn thành công có áp dụng điểm thưởng giảm giá (tối đa 100,000 điểm = 100,000 VNĐ)")
         void testCreateInvoice_MemberCustomer_UseLoyaltyPoints_Success() {
-            // Khách có 250,000 điểm -> Dùng 200,000 điểm đổi thành 2,000 VND giảm giá. Còn dư 50,000 điểm
+            // Khách có 250,000 điểm, hóa đơn 150,000 VND -> Dùng tối đa 100,000 điểm = giảm 100,000 VND. Còn dư 150,000 điểm
             Customer customer = new Customer("CUST001", "Lê Văn C", "0901234567", "c@gmail.com", 250000, LocalDateTime.now());
             Product product = new Product("PROD001", "CAT01", "Dầu ăn Simply", 50,
-                    LocalDateTime.now().plusMonths(6), "ON_SALE", new BigDecimal("65000"));
+                    LocalDateTime.now().plusMonths(6), "ON_SALE", new BigDecimal("150000"));
 
             when(invoiceRepository.findCustomerById("CUST001")).thenReturn(Optional.of(customer));
             when(invoiceRepository.findProductById("PROD001")).thenReturn(Optional.of(product));
 
             InvoiceRequest.Create request = new InvoiceRequest.Create("CUST001", true, List.of(
-                    new InvoiceRequest.Item("PROD001", 1) // 65,000 VND
+                    new InvoiceRequest.Item("PROD001", 1) // 150,000 VND
             ));
 
             InvoiceResponse.CreateResponse response = invoiceService.createInvoice(request, "EMP001", "Trần Văn B");
 
             assertNotNull(response);
-            assertEquals(new BigDecimal("65000"), response.getOriginalTotal());
-            assertEquals(new BigDecimal("2000"), response.getDiscountAmount());
-            assertEquals(new BigDecimal("63000"), response.getFinalTotal());
-            // Điểm còn lại: 250,000 - 200,000 = 50,000 (không được cộng điểm mới vì đã giảm giá)
-            assertEquals(50000, customer.getLoyaltyPoints());
+            assertEquals(new BigDecimal("150000"), response.getOriginalTotal());
+            assertEquals(new BigDecimal("100000"), response.getDiscountAmount());
+            assertEquals(new BigDecimal("50000"), response.getFinalTotal());
+            // Điểm còn lại: 250,000 - 100,000 = 150,000
+            assertEquals(150000, customer.getLoyaltyPoints());
         }
 
         @Test
-        @DisplayName("Điểm thưởng không đủ 100,000 điểm: không giảm giá, được tích điểm bình thường")
-        void testCreateInvoice_MemberCustomer_NotEnoughPoints_NoDiscount() {
-            Customer customer = new Customer("CUST001", "Lê Văn C", "0901234567", "c@gmail.com", 80000, LocalDateTime.now());
+        @DisplayName("Khách hàng có 0 điểm: không giảm giá, được tích điểm bình thường")
+        void testCreateInvoice_MemberCustomer_ZeroPoints_NoDiscount() {
+            Customer customer = new Customer("CUST001", "Lê Văn C", "0901234567", "c@gmail.com", 0, LocalDateTime.now());
             Product product = new Product("PROD001", "CAT01", "Bánh Cosy", 50,
                     LocalDateTime.now().plusMonths(6), "ON_SALE", new BigDecimal("50000"));
 
@@ -252,15 +252,15 @@ class InvoiceServiceTest {
             assertNotNull(response);
             assertEquals(BigDecimal.ZERO, response.getDiscountAmount());
             assertEquals(new BigDecimal("50000"), response.getFinalTotal());
-            // 80000 + 500 = 80500
-            assertEquals(80500, customer.getLoyaltyPoints());
+            // 0 + 500 = 500
+            assertEquals(500, customer.getLoyaltyPoints());
         }
 
         @Test
         @DisplayName("Số tiền giảm giá vượt quá tổng hóa đơn: giảm tối đa bằng tổng hóa đơn")
         void testCreateInvoice_DiscountExceedsTotal_CappedAtOriginalTotal() {
-            // Khách có 600,000 điểm -> Đổi được 6,000 VND giảm giá, nhưng mua kẹo chỉ 4,000 VND
-            Customer customer = new Customer("CUST001", "Lê Văn C", "0901234567", "c@gmail.com", 600000, LocalDateTime.now());
+            // Khách có 50,000 điểm, nhưng mua kẹo chỉ 4,000 VND -> Giảm tối đa 4,000 VND (dùng 4,000 điểm)
+            Customer customer = new Customer("CUST001", "Lê Văn C", "0901234567", "c@gmail.com", 50000, LocalDateTime.now());
             Product product = new Product("PROD001", "CAT01", "Kẹo mút Chupa Chups", 100,
                     LocalDateTime.now().plusMonths(6), "ON_SALE", new BigDecimal("4000"));
 
@@ -277,6 +277,8 @@ class InvoiceServiceTest {
             assertEquals(new BigDecimal("4000"), response.getOriginalTotal());
             assertEquals(new BigDecimal("4000"), response.getDiscountAmount());
             assertEquals(BigDecimal.ZERO, response.getFinalTotal());
+            // 50,000 - 4,000 = 46,000
+            assertEquals(46000, customer.getLoyaltyPoints());
         }
     }
 

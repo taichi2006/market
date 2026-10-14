@@ -238,9 +238,12 @@ class ReturnReceiptServiceTest {
             assertEquals(new BigDecimal("30000"), response.getRefundAmount());
             assertEquals("EMP001", response.getCreatedBy().getEmployeeId());
 
+            org.mockito.ArgumentCaptor<ReturnReceipt> receiptCaptor = org.mockito.ArgumentCaptor.forClass(ReturnReceipt.class);
             verify(returnReceiptRepository, times(1)).saveReturnReceiptTransaction(
-                    any(ReturnReceipt.class), anyMap(), isNull(), eq(0)
+                    receiptCaptor.capture(), anyMap(), isNull(), eq(0)
             );
+            assertEquals("INV001", receiptCaptor.getValue().getInvoiceId());
+            assertEquals("EMP001", receiptCaptor.getValue().getEmployeeId());
         }
 
         @Test

@@ -282,7 +282,7 @@ public class InvoiceRepository extends BaseRepository<Invoice, String> {
                 if (customer != null) {
                     BigDecimal discount = invoice.getDiscountAmount();
                     if (discount != null && discount.compareTo(BigDecimal.ZERO) > 0) {
-                        int refundPoints = (int) Math.round((discount.doubleValue() / 1000.0) * 100000.0);
+                        int refundPoints = discount.intValue();
                         int current = customer.getLoyaltyPoints() != null ? customer.getLoyaltyPoints() : 0;
                         customer.setLoyaltyPoints(current + refundPoints);
                     } else {

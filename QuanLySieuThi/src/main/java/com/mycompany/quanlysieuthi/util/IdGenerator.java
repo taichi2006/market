@@ -167,4 +167,18 @@ public final class IdGenerator {
     public static String nextCategoryId() {
         return generateId(ProductCategory.class, "categoryId", "LSP");
     }
+
+    /** Phieu xuat huy kho: PH001, PH002... */
+    public static String nextDisposalVoucherId() {
+        return generateId(Voucher.class, "voucherId", "PH");
+    }
+
+    /** Chi tiet phieu huy: CTPH001, CTPH002... */
+    public static String nextDisposalDetailId() {
+        return generateId(com.mycompany.quanlysieuthi.entity.DisposalReceiptDetail.class, "disposalDetailId", "CTPH");
+    }
+
+    public static List<String> nextDisposalDetailIds(int count) {
+        return generateNextIds(com.mycompany.quanlysieuthi.entity.DisposalReceiptDetail.class, "disposalDetailId", "CTPH", count);
+    }
 }

@@ -86,17 +86,18 @@ public class InvoiceService {
                     product.getProductName(), itemReq.getQuantity(), product.getUnitPrice(), subtotal));
         }
 
-        // Loyalty discount calculation
+        // Loyalty discount calculation: 1 điểm = 1 VNĐ, tối đa 100,000 điểm/hóa đơn
         BigDecimal discountAmount = BigDecimal.ZERO;
         if (customer != null && Boolean.TRUE.equals(request.getUseLoyaltyPoints())) {
             int currentPoints = customer.getLoyaltyPoints() != null ? customer.getLoyaltyPoints() : 0;
-            if (currentPoints >= 100000) {
-                int pointsToUse = (currentPoints / 100000) * 100000;
-                discountAmount = BigDecimal.valueOf((pointsToUse / 100000) * 1000L);
-                if (discountAmount.compareTo(originalTotal) > 0) {
-                    discountAmount = originalTotal;
+            if (currentPoints > 0) {
+                int maxAllowed = 100000;
+                int pointsToUse = Math.min(currentPoints, maxAllowed);
+                pointsToUse = Math.min(pointsToUse, originalTotal.intValue());
+                if (pointsToUse > 0) {
+                    discountAmount = BigDecimal.valueOf(pointsToUse);
+                    customer.setLoyaltyPoints(currentPoints - pointsToUse);
                 }
-                customer.setLoyaltyPoints(currentPoints - pointsToUse);
             }
         }
 
