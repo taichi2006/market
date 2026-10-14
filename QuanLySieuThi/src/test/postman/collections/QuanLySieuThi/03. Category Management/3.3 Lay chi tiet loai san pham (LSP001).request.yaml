@@ -1,7 +1,6 @@
-﻿$kind: http-request
-name: "3.3 Lay chi tiet loai san pham (LSP001)"
+$kind: http-request
 description: Lay thong tin chi tiet loai san pham theo ID
-url: "{{baseUrl}}/category/{{categoryId}}"
+url: "{{baseUrl}}/categories/{{categoryId}}"
 method: GET
 auth:
   type: bearer
@@ -9,8 +8,6 @@ auth:
     token: "{{accessToken}}"
 scripts:
   - type: afterResponse
-    code: |-
-      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    code: pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
     language: text/javascript
 order: 3000
-

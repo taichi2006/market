@@ -1,5 +1,4 @@
-﻿$kind: http-request
-name: "4.3 Lay chi tiet san pham (SP000001)"
+$kind: http-request
 description: Lay chi tiet san pham theo ID
 url: "{{baseUrl}}/product/{{productId}}"
 method: GET
@@ -9,8 +8,6 @@ auth:
     token: "{{accessToken}}"
 scripts:
   - type: afterResponse
-    code: |-
-      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    code: pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
     language: text/javascript
 order: 3000
-

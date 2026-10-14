@@ -1,10 +1,7 @@
-﻿$kind: http-request
-name: "3.1 Lay tat ca loai san pham (Dropdown)"
+$kind: http-request
 description: Lay toan bo danh sach loai san pham de do vao Select
-url: "{{baseUrl}}/category?all=true"
+url: "{{baseUrl}}/category"
 method: GET
-queryParams:
-  all: "true"
 auth:
   type: bearer
   credentials:
@@ -19,4 +16,3 @@ scripts:
       });
     language: text/javascript
 order: 1000
-

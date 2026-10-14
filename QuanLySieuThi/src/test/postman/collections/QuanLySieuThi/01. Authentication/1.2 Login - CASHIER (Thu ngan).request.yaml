@@ -1,5 +1,4 @@
-﻿$kind: http-request
-name: "1.2 Login - CASHIER (Thu ngan)"
+$kind: http-request
 description: Dang nhap tai khoan Thu ngan (CASHIER)
 url: "{{baseUrl}}/auth/login"
 method: POST
@@ -10,7 +9,7 @@ body:
   content: |-
     {
       "username": "cashier01",
-      "password": "Password@123"
+      "password": "123456"
     }
 auth:
   type: noauth
@@ -26,4 +25,3 @@ scripts:
       pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
     language: text/javascript
 order: 2000
-

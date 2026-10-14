@@ -1,5 +1,4 @@
-﻿$kind: http-request
-name: "1.1 Login - STORE_OWNER (Admin)"
+$kind: http-request
 description: Dang nhap tai khoan Chu cua hang (STORE_OWNER)
 url: "{{baseUrl}}/auth/login"
 method: POST
@@ -9,8 +8,8 @@ body:
   type: text
   content: |-
     {
-      "username": "admin",
-      "password": "Password@123"
+      "username": "owner",
+      "password": "123456"
     }
 auth:
   type: noauth
@@ -32,4 +31,3 @@ scripts:
       });
     language: text/javascript
 order: 1000
-

@@ -1,5 +1,4 @@
-﻿$kind: http-request
-name: "2.5 Cap nhat thong tin nhan vien"
+$kind: http-request
 description: Cap nhat ho ten, so dien thoai, trang thai nhan vien
 url: "{{baseUrl}}/employee/{{employeeId}}"
 method: PUT
@@ -9,10 +8,10 @@ body:
   type: text
   content: |-
     {
-      "fullName": "Nguyen Van Quan Ly (Updated)",
-      "username": "admin",
-      "phoneNumber": "0901234567",
-      "position": "STORE_OWNER",
+      "fullName": "Le Van Kho Test",
+      "username": "inventory_test",
+      "phoneNumber": "0912345677",
+      "position": "INVENTORY_MANAGER",
       "status": true
     }
 auth:
@@ -21,8 +20,6 @@ auth:
     token: "{{accessToken}}"
 scripts:
   - type: afterResponse
-    code: |-
-      pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
+    code: pm.test("Status code is 200", function () { pm.response.to.have.status(200); });
     language: text/javascript
 order: 5000
-
