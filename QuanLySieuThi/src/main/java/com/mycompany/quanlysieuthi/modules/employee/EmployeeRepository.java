@@ -95,18 +95,55 @@ public class EmployeeRepository extends BaseRepository<Employee, String> {
         }
     }
 
+    public Optional<Employee> findByIdIgnoreCase(String employeeId) {
+        if (employeeId == null || employeeId.trim().isEmpty()) {
+            return Optional.empty();
+        }
+        String cleanId = employeeId.trim();
+        Optional<Employee> exact = findById(cleanId);
+        if (exact.isPresent()) {
+            return exact;
+        }
+
+        EntityManager em = getEntityManager();
+        try {
+            List<Employee> list = em.createQuery(
+                    "SELECT e FROM Employee e WHERE UPPER(e.employeeId) = UPPER(:id)",
+                    Employee.class
+            ).setParameter("id", cleanId).setMaxResults(1).getResultList();
+
+            return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+        } finally {
+            if (em.isOpen()) {
+                em.close();
+            }
+        }
+    }
+
+    public long countActiveStoreOwners() {
+        EntityManager em = getEntityManager();
+        try {
+            Long count = em.createQuery(
+                    "SELECT COUNT(e) FROM Employee e WHERE UPPER(e.position) = 'STORE_OWNER' AND (e.status IS NULL OR e.status = TRUE)",
+                    Long.class
+            ).getSingleResult();
+            return count != null ? count : 0L;
+        } finally {
+            if (em.isOpen()) {
+                em.close();
+            }
+        }
+    }
+
     public boolean softDelete(String employeeId) {
         if (employeeId == null || employeeId.trim().isEmpty()) {
             return false;
         }
         return executeInTransactionWithResult(em -> {
-            Employee employee = em.find(Employee.class, employeeId.trim());
-            if (employee != null) {
-                employee.setStatus(false);
-                em.merge(employee);
-                return true;
-            }
-            return false;
+            int updated = em.createQuery(
+                    "UPDATE Employee e SET e.status = false WHERE UPPER(e.employeeId) = UPPER(:id)"
+            ).setParameter("id", employeeId.trim()).executeUpdate();
+            return updated > 0;
         });
     }
 

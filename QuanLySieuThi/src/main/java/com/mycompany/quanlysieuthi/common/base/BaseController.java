@@ -9,7 +9,13 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.PersistenceException;
+
 import java.io.IOException;
+import java.time.format.DateTimeParseException;
+import java.util.NoSuchElementException;
 
 /**
  * Base Controller cung cấp các tiện ích xử lý request, response, trích xuất dữ liệu,
@@ -32,23 +38,70 @@ public abstract class BaseController extends HttpServlet {
     /**
      * Bọc khối thực thi và tự động phân loại xử lý exception chuẩn hóa theo mã HTTP:
      * - AppException (NotFound, Conflict, BadRequest, Unauthorized, Forbidden, Business...) -> mã HTTP tương ứng
-     * - IllegalArgumentException / JsonSyntaxException / IllegalStateException -> 400 BAD REQUEST
+     * - IllegalArgumentException / JsonSyntaxException / IllegalStateException / DateTimeParseException -> 400 BAD REQUEST
+     * - EntityNotFoundException / NoResultException / NoSuchElementException -> 404 NOT FOUND
+     * - PersistenceException (Foreign Key, Unique constraint...) -> 409 CONFLICT / 422 UNPROCESSABLE ENTITY
      * - SecurityException -> 403 FORBIDDEN
-     * - Exception khác -> 500 INTERNAL SERVER ERROR
+     * - Tuyệt đối không để văng lỗi 500 cho các trường hợp vi phạm ràng buộc dữ liệu.
      */
     protected void execute(HttpServletResponse resp, ControllerAction action) throws IOException {
         try {
             action.execute();
         } catch (AppException e) {
             ResponseUtil.sendError(resp, e.getStatusCode(), e.getMessage());
-        } catch (IllegalArgumentException | JsonSyntaxException | IllegalStateException e) {
+        } catch (IllegalArgumentException | JsonSyntaxException | IllegalStateException | DateTimeParseException e) {
             ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         } catch (SecurityException e) {
             ResponseUtil.sendError(resp, HttpServletResponse.SC_FORBIDDEN, e.getMessage());
+        } catch (EntityNotFoundException | NoResultException | NoSuchElementException e) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND,
+                    e.getMessage() != null ? e.getMessage() : "Không tìm thấy dữ liệu yêu cầu.");
+        } catch (PersistenceException e) {
+            handlePersistenceException(resp, e);
+        } catch (NullPointerException e) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST,
+                    "Dữ liệu gửi lên không hợp lệ hoặc thiếu trường bắt buộc.");
         } catch (Exception e) {
-            ResponseUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Lỗi hệ thống: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+            Throwable root = getRootCause(e);
+            if (root instanceof PersistenceException) {
+                handlePersistenceException(resp, (PersistenceException) root);
+            } else {
+                String errorMsg = root.getMessage() != null ? root.getMessage() : e.getMessage();
+                ResponseUtil.sendError(resp, 422,
+                        "Không thể xử lý yêu cầu: " + (errorMsg != null ? errorMsg : e.getClass().getSimpleName()));
+            }
         }
+    }
+
+    private void handlePersistenceException(HttpServletResponse resp, PersistenceException e) throws IOException {
+        Throwable root = getRootCause(e);
+        String msg = root != null && root.getMessage() != null ? root.getMessage() : e.getMessage();
+        if (msg == null) {
+            msg = "";
+        }
+        String lower = msg.toLowerCase();
+
+        if (lower.contains("violates foreign key constraint") || lower.contains("foreign key") || lower.contains("khóa ngoại")) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_CONFLICT,
+                    "Không thể xóa hoặc thay đổi dữ liệu do có các bản ghi khác trong hệ thống đang liên kết.");
+        } else if (lower.contains("violates unique constraint") || lower.contains("duplicate key") || lower.contains("trùng")) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_CONFLICT,
+                    "Dữ liệu bị trùng lặp với bản ghi đã tồn tại trong hệ thống.");
+        } else if (lower.contains("violates not-null constraint") || lower.contains("not-null")) {
+            ResponseUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST,
+                    "Dữ liệu bắt buộc không được để trống trong cơ sở dữ liệu.");
+        } else {
+            ResponseUtil.sendError(resp, 422,
+                    "Lỗi ràng buộc cơ sở dữ liệu: " + msg);
+        }
+    }
+
+    private Throwable getRootCause(Throwable t) {
+        Throwable curr = t;
+        while (curr.getCause() != null && curr.getCause() != curr) {
+            curr = curr.getCause();
+        }
+        return curr;
     }
 
     /**

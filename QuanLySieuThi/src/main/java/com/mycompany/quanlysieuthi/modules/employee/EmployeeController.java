@@ -44,13 +44,7 @@ public class EmployeeController extends BaseController {
         String targetId = extractPathId(req);
 
         if (targetId != null && !targetId.equalsIgnoreCase("employee") && !targetId.equalsIgnoreCase("employees")) {
-            handle(resp, () -> {
-                EmployeeResponse employee = employeeService.getEmployeeById(targetId);
-                if (employee == null) {
-                    throw new NotFoundException("Không tìm thấy nhân viên với ID tương ứng.");
-                }
-                return employee;
-            }, "Lấy chi tiết nhân viên thành công");
+            handle(resp, () -> employeeService.getEmployeeById(targetId), "Lấy chi tiết nhân viên thành công");
         } else {
             execute(resp, () -> {
                 int page = parsePage(req);
@@ -86,14 +80,10 @@ public class EmployeeController extends BaseController {
         handle(resp, () -> {
             EmployeeRequest requestDto = parseBody(req, EmployeeRequest.class);
             if (requestDto == null) {
-                throw new IllegalArgumentException("Request body không được để trống");
+                throw new BadRequestException("Request body không được để trống");
             }
 
-            EmployeeResponse updated = employeeService.updateEmployee(targetId, requestDto);
-            if (updated == null) {
-                throw new NotFoundException("Không tìm thấy nhân viên với ID tương ứng.");
-            }
-            return updated;
+            return employeeService.updateEmployee(targetId, requestDto);
         }, "Cập nhật nhân viên thành công");
     }
 
@@ -110,11 +100,7 @@ public class EmployeeController extends BaseController {
 
         handle(resp, () -> {
             String currentUserId = getCurrentEmployeeId(req);
-            EmployeeResponse.DeleteResult result = employeeService.deleteEmployee(targetId, currentUserId);
-            if (result == null) {
-                throw new NotFoundException("Không tìm thấy nhân viên với ID tương ứng.");
-            }
-            return result;
+            return employeeService.deleteEmployee(targetId, currentUserId);
         }, "Xóa nhân viên thành công");
     }
 }

@@ -1,70 +1,76 @@
 # TÀI LIỆU TÍCH HỢP API BACKEND - SIÊU THỊ MINI (QUẢN LÝ SIÊU THỊ)
 
 > **Dành cho**: Frontend Developer, Mobile Developer & Tester  
-> **Phiên bản API**: `1.0.0`  
-> **Giao thức**: HTTP RESTful JSON  
-> **Base URL Mặc định (Local)**: `http://localhost:8080/QuanLySieuThi` (hoặc `http://localhost:8080` tùy cấu hình server)  
+> **Phiên bản API**: `1.0.0` (Cập nhật chuẩn hóa Records DTO, Tối ưu hiệu năng, Báo cáo Doanh thu & Xuất Excel)  
+> **Giao thức**: HTTP RESTful JSON / Binary Stream (Excel)  
+> **Base URL Mặc định**:  
+> - Local (Tomcat với context path): `http://localhost:8080/QuanLySieuThi/api`  
+> - Local (Root context): `http://localhost:8080/api`  
 
 ---
 
-## 1. QUY CHUẨN CHUNG
+## 1. QUY CHUẨN CHUNG & KIẾN TRÚC GIAO TIẾP
 
-### 1.1. Headers
-- `Content-Type: application/json` (cho toàn bộ request POST/PUT).
-- `Authorization: Bearer <access_token>` (bắt buộc cho tất cả các API được bảo vệ).
+### 1.1. Headers Bắt Buộc
+- **JSON Requests**: `Content-Type: application/json`
+- **Xác thực (Protected APIs)**: `Authorization: Bearer <access_token>`
+- **CORS & Cookie**: Frontend khi gọi API bằng `axios` hoặc `fetch` **BẮT BUỘC** bật `withCredentials: true` (hoặc `credentials: 'include'`) để trình duyệt tự động gửi và nhận cookie `refreshToken` (`HttpOnly`).
 
-### 1.2. Định dạng phản hồi chuẩn (Standard JSON Response)
+### 1.2. Cấu Trúc Response JSON Chuẩn (Standard API Response)
 
-#### Phản hồi thành công:
+#### a. Phản hồi thành công thông thường:
 ```json
 {
   "status": 200,
-  "message": "Mô tả kết quả thành công",
+  "message": "Thông điệp kết quả thực thi",
   "data": { ... }
 }
 ```
-*(Đối với API phân trang có thêm trường `meta`)*:
+
+#### b. Phản hồi thành công có phân trang (Pagination):
 ```json
 {
   "status": 200,
   "message": "Lấy danh sách thành công",
   "data": [ ... ],
   "meta": {
-    "page": 1,
-    "limit": 10,
-    "total": 45,
-    "totalPages": 5
+    "currentPage": 1,
+    "totalPages": 5,
+    "totalItems": 48,
+    "pageSize": 10
   }
 }
 ```
 
-#### Phản hồi lỗi:
+#### c. Phản hồi lỗi (Error Response):
 ```json
 {
   "status": 400,
-  "message": "Chi tiết lỗi cụ thể từ hệ thống"
+  "message": "Chi tiết nguyên nhân lỗi trả về từ hệ thống"
 }
 ```
 
-### 1.3. Mã HTTP Status
-- `200 OK`: Yêu cầu xử lý thành công.
-- `201 CREATED`: Tạo mới tài nguyên thành công.
-- `400 BAD REQUEST`: Thiếu dữ liệu, sai định dạng dữ liệu (validation failed).
-- `401 UNAUTHORIZED`: Chưa đăng nhập, token không hợp lệ hoặc đã hết hạn.
-- `403 FORBIDDEN`: Không có quyền hạn truy cập API này (Role không khớp).
-- `404 NOT FOUND`: Không tìm thấy tài nguyên theo ID.
-- `409 CONFLICT`: Xung đột dữ liệu (ví dụ: trùng username, số điện thoại, trùng tài nguyên).
-- `429 TOO MANY REQUESTS`: Bị giới hạn tần suất gửi yêu cầu (Rate Limit anti-spam).
-- `500 INTERNAL SERVER ERROR`: Lỗi hệ thống server.
+### 1.3. Bảng Mã Lỗi HTTP Phổ Biến
+| Mã HTTP | Tên chuẩn | Ý nghĩa |
+| :--- | :--- | :--- |
+| **`200`** | OK | Thao tác truy vấn / cập nhật / xóa thành công. |
+| **`201`** | CREATED | Tạo mới dữ liệu thành công. |
+| **`400`** | BAD REQUEST | Dữ liệu gửi lên sai định dạng, thiếu trường bắt buộc, hoặc vi phạm logic nghiệp vụ. |
+| **`401`** | UNAUTHORIZED | Chưa đăng nhập, thiếu token, hoặc token đã hết hạn. |
+| **`403`** | FORBIDDEN | Đã đăng nhập nhưng Role không đủ quyền truy cập endpoint này. |
+| **`404`** | NOT FOUND | Không tìm thấy tài nguyên theo ID hoặc sai đường dẫn endpoint. |
+| **`409`** | CONFLICT | Xung đột dữ liệu (ví dụ: trùng username, trùng số điện thoại, xóa loại đang chứa hàng...). |
+| **`500`** | INTERNAL SERVER ERROR | Lỗi ngoại lệ chưa xử lý ở tầng backend. |
 
 ---
 
-## 2. PHÂN QUYỀN HỆ THỐNG (ROLE-BASED ACCESS CONTROL)
+## 2. PHÂN QUYỀN HỆ THỐNG (RBAC - ROLE BASED ACCESS CONTROL)
 
-Hệ thống hỗ trợ 3 chức vụ (`position`):
-1. **`STORE_OWNER`** (Chủ cửa hàng): Toàn quyền truy cập tất cả API hệ thống.
-2. **`CASHIER`** (Thu ngân): Bán hàng, tạo hóa đơn, xử lý thanh toán (tiền mặt/VNPay), quản lý khách hàng, xử lý đổi trả hàng, xem danh sách sản phẩm.
-3. **`INVENTORY_MANAGER`** (Thủ kho): Nhập hàng (phiếu nhập), kiểm kê hàng hóa (báo cáo kiểm kê kho), xem sản phẩm & cảnh báo tồn kho thấp.
+Hệ thống có 3 chức vụ chính được định nghĩa trong JWT Claim (`position`):
+1. **`STORE_OWNER`** (Chủ cửa hàng / Quản trị viên): Toàn quyền truy cập tất cả API trên hệ thống.
+2. **`CASHIER`** (Thu ngân): Bán hàng, tạo hóa đơn (`/invoice`), thanh toán (`/payment`), quản lý khách hàng (`/customer`), xử lý đổi trả (`/return-receipt`), tra cứu sản phẩm (`/product`).
+3. **`INVENTORY_MANAGER`** (Thủ kho): Nhập hàng (`/purchase-receipt`), kiểm kê / báo cáo lệch tồn kho (`/report/stock-discrepancy`), xem & cập nhật sản phẩm (`/product`), cảnh báo tồn kho thấp.
+4. **`Public`**: Không cần đăng nhập (`/api/auth/*`, `POST /api/feedback`, các webhook VNPay).
 
 ---
 
@@ -72,16 +78,16 @@ Hệ thống hỗ trợ 3 chức vụ (`position`):
 
 ---
 
-### MODULE 1: AUTHENTICATION (`/api/auth`)
+### MODULE 1: XÁC THỰC NGƯỜI DÙNG (`/api/auth`)
 
-#### 1. Đăng nhập
+#### 1.1. Đăng nhập hệ thống
 - **Endpoint**: `POST /api/auth/login`
 - **Quyền**: Public
 - **Request Body**:
 ```json
 {
   "username": "admin",
-  "password": "password123"
+  "password": "Password@123"
 }
 ```
 - **Response `200 OK`**:
@@ -90,57 +96,68 @@ Hệ thống hỗ trợ 3 chức vụ (`position`):
   "status": 200,
   "message": "Đăng nhập thành công",
   "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIsIn...",
-    "tokenType": "Bearer",
-    "expiresIn": 86400,
-    "employeeId": "emp-uuid-123",
-    "username": "admin",
-    "fullName": "Nguyễn Văn Quản Lý",
-    "position": "STORE_OWNER"
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "employee": {
+      "employeeId": "NV000001",
+      "username": "admin",
+      "fullName": "Nguyễn Văn Quản Lý",
+      "position": "STORE_OWNER"
+    }
   }
 }
 ```
-> **Lưu ý quan trọng cho FE**: Server tự động thiết lập Cookie `refreshToken` (`HttpOnly`, `Path=/`). FE chỉ cần lưu trữ `accessToken` vào `localStorage` hoặc bộ nhớ state để gửi kèm header `Authorization: Bearer <token>`.
+> **Cơ chế lưu Token cho FE**:  
+> - `accessToken`: FE lưu vào `localStorage` hoặc state của ứng dụng để truyền vào header `Authorization: Bearer <accessToken>`.  
+> - `refreshToken`: Server tự động ghi vào `Cookie` với cờ `HttpOnly; Path=/`. FE không thể và không cần đọc cookie này bằng JS.
 
-#### 2. Đăng xuất
-- **Endpoint**: `POST /api/auth/logout`
-- **Quyền**: Public
-- **Mô tả**: Tự động xóa Cookie `refreshToken`.
-- **Response `200 OK`**:
-```json
-{
-  "status": 200,
-  "message": "Đăng xuất thành công"
-}
-```
+---
 
-#### 3. Làm mới Access Token (Refresh Token)
+#### 1.2. Làm mới Access Token (Refresh Token)
 - **Endpoint**: `POST /api/auth/refresh`
-- **Quyền**: Public (yêu cầu Cookie `refreshToken`)
+- **Quyền**: Public (Trình duyệt tự động đính kèm Cookie `refreshToken`)
+- **Request Body**: Rỗng `{}`
 - **Response `200 OK`**:
 ```json
 {
   "status": 200,
-  "message": "Thành công",
+  "message": "Refresh token thành công",
   "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIsIn..."
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   }
 }
 ```
 
 ---
 
-### MODULE 2: EMPLOYEE MANAGEMENT (`/api/employee`)
-> **Quyền**: `STORE_OWNER` (nhân viên chỉ được xem thông tin chính mình qua `GET /api/employee/:id`).
+#### 1.3. Đăng xuất
+- **Endpoint**: `POST /api/auth/logout`
+- **Quyền**: Public
+- **Request Body**: Rỗng `{}`
+- **Mô tả**: Xóa phiên refreshToken trong DB và xóa Cookie `refreshToken` trên trình duyệt.
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Đăng xuất thành công",
+  "data": null
+}
+```
 
-#### 1. Lấy danh sách nhân viên
+---
+
+### MODULE 2: QUẢN LÝ NHÂN VIÊN (`/api/employee`)
+> **Quyền hạn**:  
+> - `STORE_OWNER`: Có quyền trên toàn bộ các phương thức.  
+> - Nhân viên khác (`CASHIER`, `INVENTORY_MANAGER`): Chỉ được gọi `GET /api/employee/:id` với `:id` đúng bằng mã nhân viên của chính mình.
+
+#### 2.1. Lấy danh sách nhân viên
 - **Endpoint**: `GET /api/employee`
 - **Query Params**:
-  - `page` (int, default: 1)
-  - `limit` (int, default: 10)
-  - `keyword` (string, tìm theo tên hoặc username)
+  - `page` (int, default: `1`)
+  - `limit` (int, default: `10`)
+  - `keyword` (string, tìm theo họ tên hoặc username)
   - `position` (string: `STORE_OWNER`, `CASHIER`, `INVENTORY_MANAGER`)
-  - `status` (boolean: `true`/`false`)
+  - `status` (boolean: `true` / `false`)
 - **Response `200 OK`**:
 ```json
 {
@@ -148,26 +165,26 @@ Hệ thống hỗ trợ 3 chức vụ (`position`):
   "message": "Lấy danh sách nhân viên thành công",
   "data": [
     {
-      "employeeId": "e1a2b3c4-...",
-      "username": "cashier01",
-      "fullName": "Trần Thị Thu Ngân",
-      "phoneNumber": "0987654321",
-      "email": "thungan@gmail.com",
-      "position": "CASHIER",
-      "status": true,
-      "createdAt": "2026-10-10T08:30:00"
+      "employeeId": "NV000001",
+      "fullName": "Nguyễn Văn Quản Lý",
+      "username": "admin",
+      "phoneNumber": "0901234567",
+      "position": "STORE_OWNER",
+      "status": true
     }
   ],
   "meta": {
-    "page": 1,
-    "limit": 10,
-    "total": 1,
-    "totalPages": 1
+    "currentPage": 1,
+    "totalPages": 1,
+    "totalItems": 1,
+    "pageSize": 10
   }
 }
 ```
 
-#### 2. Lấy chi tiết nhân viên
+---
+
+#### 2.2. Lấy chi tiết nhân viên
 - **Endpoint**: `GET /api/employee/:id`
 - **Response `200 OK`**:
 ```json
@@ -175,28 +192,28 @@ Hệ thống hỗ trợ 3 chức vụ (`position`):
   "status": 200,
   "message": "Lấy chi tiết nhân viên thành công",
   "data": {
-    "employeeId": "e1a2b3c4-...",
-    "username": "cashier01",
+    "employeeId": "NV000002",
     "fullName": "Trần Thị Thu Ngân",
+    "username": "cashier01",
     "phoneNumber": "0987654321",
-    "email": "thungan@gmail.com",
     "position": "CASHIER",
-    "status": true,
-    "createdAt": "2026-10-10T08:30:00"
+    "status": true
   }
 }
 ```
 
-#### 3. Tạo tài khoản nhân viên
+---
+
+#### 2.3. Tạo tài khoản nhân viên mới
 - **Endpoint**: `POST /api/employee`
+- **Quyền**: `STORE_OWNER`
 - **Request Body**:
 ```json
 {
+  "fullName": "Lê Văn Kho",
   "username": "inventory01",
   "password": "Password@123",
-  "fullName": "Lê Văn Kho",
   "phoneNumber": "0912345678",
-  "email": "kho@gmail.com",
   "position": "INVENTORY_MANAGER",
   "status": true
 }
@@ -207,45 +224,323 @@ Hệ thống hỗ trợ 3 chức vụ (`position`):
   "status": 201,
   "message": "Tạo nhân viên thành công",
   "data": {
-    "employeeId": "new-uuid-...",
-    "username": "inventory01",
+    "employeeId": "NV000003",
     "fullName": "Lê Văn Kho",
+    "username": "inventory01",
     "phoneNumber": "0912345678",
-    "email": "kho@gmail.com",
     "position": "INVENTORY_MANAGER",
     "status": true
   }
 }
 ```
 
-#### 4. Cập nhật nhân viên
+---
+
+#### 2.4. Cập nhật thông tin nhân viên
 - **Endpoint**: `PUT /api/employee/:id`
-- **Request Body**: (các trường cần update, password có thể bỏ trống nếu không đổi mật khẩu)
+- **Quyền**: `STORE_OWNER`
+- **Request Body**:
 ```json
 {
   "fullName": "Lê Văn Kho (Cập nhật)",
+  "username": "inventory01",
+  "password": "NewPassword@123",
   "phoneNumber": "0912345679",
-  "email": "kho.new@gmail.com",
   "position": "INVENTORY_MANAGER",
   "status": true
 }
 ```
-
-#### 5. Xóa mềm nhân viên
-- **Endpoint**: `DELETE /api/employee/:id`
-- **Mô tả**: Chuyển `status` thành `false` (không xóa vật lý trong database).
+*(Nếu không muốn đổi mật khẩu, có thể để trống trường `password`)*.
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Cập nhật nhân viên thành công",
+  "data": {
+    "employeeId": "NV000003",
+    "fullName": "Lê Văn Kho (Cập nhật)",
+    "username": "inventory01",
+    "phoneNumber": "0912345679",
+    "position": "INVENTORY_MANAGER",
+    "status": true
+  }
+}
+```
 
 ---
 
-### MODULE 3: CUSTOMER MANAGEMENT (`/api/customer`)
-> **Quyền**: `STORE_OWNER` hoặc `CASHIER`.
+#### 2.5. Xóa mềm nhân viên (Vô hiệu hóa tài khoản)
+- **Endpoint**: `DELETE /api/employee/:id`
+- **Quyền**: `STORE_OWNER` (Không thể tự xóa chính mình)
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Xóa nhân viên thành công",
+  "data": {
+    "employeeId": "NV000003",
+    "status": false
+  }
+}
+```
 
-#### 1. Lấy danh sách khách hàng
+---
+
+### MODULE 3: QUẢN LÝ LOẠI SẢN PHẨM (`/api/category`)
+> **Quyền hạn**:  
+> - `GET`: Tất cả nhân viên đã đăng nhập.  
+> - `POST`, `PUT`, `DELETE`: Chỉ `STORE_OWNER`.
+
+#### 3.1. Lấy danh sách loại sản phẩm
+- **Endpoint**: `GET /api/category`
+- **Query Params**:
+  - `all`: `true` -> Trả về toàn bộ danh sách loại SP (phục vụ đổ Select/Dropdown).
+  - Hoặc phân trang: `page` (default: 1), `limit` (default: 10), `keyword`.
+- **Response `200 OK`** (Khi `?all=true`):
+```json
+{
+  "status": 200,
+  "message": "Lấy danh sách tất cả loại sản phẩm thành công",
+  "data": [
+    {
+      "categoryId": "LSP001",
+      "categoryName": "Nước giải khát",
+      "productCount": 15
+    },
+    {
+      "categoryId": "LSP002",
+      "categoryName": "Bánh kẹo",
+      "productCount": 8
+    }
+  ]
+}
+```
+
+---
+
+#### 3.2. Lấy chi tiết loại sản phẩm
+- **Endpoint**: `GET /api/category/:id`
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy thông tin loại sản phẩm thành công",
+  "data": {
+    "categoryId": "LSP001",
+    "categoryName": "Nước giải khát",
+    "productCount": 15
+  }
+}
+```
+
+---
+
+#### 3.3. Tạo loại sản phẩm mới
+- **Endpoint**: `POST /api/category`
+- **Quyền**: `STORE_OWNER`
+- **Request Body**:
+```json
+{
+  "categoryName": "Thực phẩm đóng hộp"
+}
+```
+*(Mã `categoryId` sẽ được Backend tự động sinh dạng `LSP001`, `LSP002`...)*
+- **Response `201 CREATED`**:
+```json
+{
+  "status": 201,
+  "message": "Tạo loại sản phẩm thành công",
+  "data": {
+    "categoryId": "LSP003",
+    "categoryName": "Thực phẩm đóng hộp",
+    "productCount": 0
+  }
+}
+```
+
+---
+
+#### 3.4. Cập nhật loại sản phẩm
+- **Endpoint**: `PUT /api/category/:id`
+- **Quyền**: `STORE_OWNER`
+- **Request Body**:
+```json
+{
+  "categoryName": "Thực phẩm đóng hộp & Đồ khô"
+}
+```
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Cập nhật loại sản phẩm thành công",
+  "data": {
+    "categoryId": "LSP003",
+    "categoryName": "Thực phẩm đóng hộp & Đồ khô",
+    "productCount": 0
+  }
+}
+```
+
+---
+
+#### 3.5. Xóa loại sản phẩm
+- **Endpoint**: `DELETE /api/category/:id`
+- **Quyền**: `STORE_OWNER`
+- **Lưu ý**: Nếu loại sản phẩm đang có sản phẩm thuộc về nó (`productCount > 0`), hệ thống sẽ trả lỗi `409 CONFLICT`.
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Xóa loại sản phẩm thành công",
+  "data": null
+}
+```
+
+---
+
+### MODULE 4: QUẢN LÝ SẢN PHẨM (`/api/product`)
+
+#### 4.1. Lấy danh sách sản phẩm
+- **Endpoint**: `GET /api/product`
+- **Quyền**: Nhân viên đã đăng nhập
+- **Query Params**:
+  - `page` (int, default: 1)
+  - `limit` (int, default: 10)
+  - `keyword` (string, tên sản phẩm hoặc mã sản phẩm)
+  - `categoryId` (string, mã loại sản phẩm)
+  - `productStatus` (`ON_SALE` hoặc `STOP_SELLING`)
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy danh sách sản phẩm thành công.",
+  "data": [
+    {
+      "productId": "SP000001",
+      "productName": "Nước ngọt Coca-Cola 320ml",
+      "unitPrice": 10000.00,
+      "stockQuantity": 150,
+      "expirationDate": "2027-01-01 00:00:00",
+      "productStatus": "ON_SALE",
+      "category": {
+        "categoryId": "LSP001",
+        "categoryName": "Nước giải khát"
+      }
+    }
+  ],
+  "meta": {
+    "currentPage": 1,
+    "totalPages": 1,
+    "totalItems": 1,
+    "pageSize": 10
+  }
+}
+```
+
+---
+
+#### 4.2. Lấy chi tiết sản phẩm
+- **Endpoint**: `GET /api/product/:id`
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy thông tin sản phẩm thành công.",
+  "data": {
+    "productId": "SP000001",
+    "productName": "Nước ngọt Coca-Cola 320ml",
+    "unitPrice": 10000.00,
+    "stockQuantity": 150,
+    "expirationDate": "2027-01-01 00:00:00",
+    "productStatus": "ON_SALE",
+    "category": {
+      "categoryId": "LSP001",
+      "categoryName": "Nước giải khát"
+    }
+  }
+}
+```
+
+---
+
+#### 4.3. Cập nhật sản phẩm
+- **Endpoint**: `PUT /api/product/:id`
+- **Quyền**: `STORE_OWNER`, `INVENTORY_MANAGER`
+- **Request Body**:
+```json
+{
+  "productName": "Nước ngọt Coca-Cola 330ml Lon Sleek",
+  "categoryId": "LSP001",
+  "unitPrice": 11000.00,
+  "productStatus": "ON_SALE"
+}
+```
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Cập nhật sản phẩm thành công.",
+  "data": {
+    "productId": "SP000001",
+    "productName": "Nước ngọt Coca-Cola 330ml Lon Sleek",
+    "unitPrice": 11000.00,
+    "stockQuantity": 150,
+    "expirationDate": "2027-01-01 00:00:00",
+    "productStatus": "ON_SALE",
+    "category": {
+      "categoryId": "LSP001",
+      "categoryName": "Nước giải khát"
+    }
+  }
+}
+```
+
+---
+
+#### 4.4. Cảnh báo tồn kho thấp (Low Stock Alerts)
+- **Endpoint**: `GET /api/product/low-stock/alerts`
+- **Quyền**: Nhân viên đã đăng nhập
+- **Query Params**:
+  - `threshold` (int, ngưỡng số lượng cảnh báo, default: `10`)
+  - `categoryId` (tùy chọn lọc theo loại SP)
+  - `page`, `limit`
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy danh sách cảnh báo tồn kho thành công.",
+  "data": [
+    {
+      "productId": "SP000002",
+      "productName": "Bánh mì sandwich bơ sữa 120g",
+      "stockQuantity": 3,
+      "category": {
+        "categoryId": "LSP002",
+        "categoryName": "Bánh kẹo"
+      }
+    }
+  ],
+  "meta": {
+    "currentPage": 1,
+    "totalPages": 1,
+    "totalItems": 1,
+    "pageSize": 10
+  }
+}
+```
+
+---
+
+### MODULE 5: QUẢN LÝ KHÁCH HÀNG (`/api/customer`)
+> **Quyền hạn**: `STORE_OWNER` hoặc `CASHIER`.
+
+#### 5.1. Lấy danh sách khách hàng
 - **Endpoint**: `GET /api/customer`
 - **Query Params**:
   - `page` (default: 1)
   - `limit` (default: 10)
-  - `keyword` (tìm theo tên hoặc số điện thoại)
+  - `keyword` (tìm theo họ tên, số điện thoại)
 - **Response `200 OK`**:
 ```json
 {
@@ -253,18 +548,26 @@ Hệ thống hỗ trợ 3 chức vụ (`position`):
   "message": "Lấy danh sách khách hàng thành công",
   "data": [
     {
-      "customerId": "cust-01-uuid",
+      "customerId": "KH000001",
       "fullName": "Nguyễn Hoàng Nam",
       "phoneNumber": "0909123456",
       "email": "nam@gmail.com",
       "loyaltyPoints": 350,
-      "createdAt": "2026-10-01T10:00:00"
+      "createdAt": "2026-10-01 10:00:00"
     }
-  ]
+  ],
+  "meta": {
+    "currentPage": 1,
+    "totalPages": 1,
+    "totalItems": 1,
+    "pageSize": 10
+  }
 }
 ```
 
-#### 2. Tạo mới khách hàng
+---
+
+#### 5.2. Tạo mới khách hàng
 - **Endpoint**: `POST /api/customer`
 - **Request Body**:
 ```json
@@ -280,325 +583,333 @@ Hệ thống hỗ trợ 3 chức vụ (`position`):
   "status": 201,
   "message": "Tạo khách hàng thành công",
   "data": {
-    "customerId": "cust-new-uuid",
+    "customerId": "KH000002",
     "fullName": "Phạm Minh Thư",
     "phoneNumber": "0938112233",
     "email": "thu@gmail.com",
     "loyaltyPoints": 0,
-    "createdAt": "2026-10-13T00:30:00"
+    "createdAt": "2026-10-14 15:30:00"
   }
 }
 ```
 
-#### 3. Lịch sử mua hàng của khách hàng
+---
+
+#### 5.3. Xem lịch sử hóa đơn mua hàng của khách hàng
 - **Endpoint**: `GET /api/customer/:id/invoices`
 - **Query Params**: `page`, `limit`, `status` (`PENDING`, `PAID`, `CANCELLED`), `fromDate`, `toDate`
-- **Response `200 OK`**: Danh sách hóa đơn của khách hàng kèm tổng tiền, giảm giá.
-
----
-
-### MODULE 4: PRODUCT MANAGEMENT (`/api/product`)
-> **Quyền**: Mọi nhân viên đã xác thực đều có thể xem danh sách sản phẩm. Cập nhật sản phẩm yêu cầu `STORE_OWNER` hoặc `INVENTORY_MANAGER`.
-
-#### 1. Lấy danh sách sản phẩm
-- **Endpoint**: `GET /api/product`
-- **Query Params**:
-  - `page` (default: 1)
-  - `limit` (default: 10)
-  - `keyword` (tên sản phẩm)
-  - `categoryId` (ID danh mục)
-  - `productStatus` (`ON_SALE`, `STOP_SELLING`)
 - **Response `200 OK`**:
 ```json
 {
   "status": 200,
-  "message": "Lấy danh sách sản phẩm thành công.",
+  "message": "Lấy lịch sử mua hàng thành công",
   "data": [
     {
-      "productId": "prod-001",
-      "productName": "Sữa chua Vinamilk 100g",
-      "categoryId": "cat-01",
-      "categoryName": "Sản phẩm từ sữa",
-      "stockQuantity": 85,
-      "expirationDate": "2026-11-20T00:00:00",
-      "productStatus": "ON_SALE",
-      "unitPrice": 8000.00
-    }
-  ]
-}
-```
-
-#### 2. Lấy chi tiết sản phẩm
-- **Endpoint**: `GET /api/product/:id`
-
-#### 3. Cập nhật thông tin sản phẩm
-- **Endpoint**: `PUT /api/product/:id`
-- **Request Body**:
-```json
-{
-  "productName": "Sữa chua Vinamilk nha đam 100g",
-  "categoryId": "cat-01",
-  "unitPrice": 8500.00,
-  "productStatus": "ON_SALE"
-}
-```
-
-#### 4. Cảnh báo tồn kho thấp (Low Stock Alert)
-- **Endpoint**: `GET /api/product/low-stock/alerts`
-- **Query Params**:
-  - `threshold` (ngưỡng số lượng tồn, default: 10)
-  - `categoryId` (tùy chọn lọc theo danh mục)
-  - `page`, `limit`
-- **Response `200 OK`**: Danh sách sản phẩm có `stockQuantity <= threshold`.
-
----
-
-### MODULE 4.1: PRODUCT CATEGORY MANAGEMENT (`/api/category`)
-> **Quyền**: Chỉ Quản trị viên (`STORE_OWNER`). Nhân viên khác sẽ nhận mã lỗi `403 FORBIDDEN`.
-
-#### 1. Lấy danh sách loại sản phẩm
-- **Endpoint**: `GET /api/category`
-- **Query Params**:
-  - `page` (default: 1)
-  - `limit` (default: 10)
-  - `keyword` (tìm theo tên loại hoặc mã loại)
-  - `all` (boolean, nếu `true` trả về toàn bộ danh sách để phục vụ dropdown)
-- **Response `200 OK`**:
-```json
-{
-  "status": 200,
-  "message": "Lấy danh sách loại sản phẩm thành công",
-  "data": [
-    {
-      "categoryId": "CAT-001",
-      "categoryName": "Beverages",
-      "productCount": 12
+      "invoiceId": "HD000001",
+      "createdAt": "2026-10-14 10:15:00",
+      "status": "PAID",
+      "originalTotal": 200000.00,
+      "discountAmount": 10000.00,
+      "finalTotal": 190000.00,
+      "employee": {
+        "employeeId": "NV000002",
+        "fullName": "Trần Thị Thu Ngân"
+      }
     }
   ],
   "meta": {
-    "page": 1,
-    "limit": 10,
-    "total": 1,
-    "totalPages": 1
+    "currentPage": 1,
+    "totalPages": 1,
+    "totalItems": 1,
+    "pageSize": 10
   }
-}
-```
-
-#### 2. Lấy chi tiết loại sản phẩm
-- **Endpoint**: `GET /api/category/:id`
-- **Response `200 OK`**:
-```json
-{
-  "status": 200,
-  "message": "Lấy thông tin loại sản phẩm thành công",
-  "data": {
-    "categoryId": "CAT-001",
-    "categoryName": "Beverages",
-    "productCount": 12
-  }
-}
-```
-
-#### 3. Tạo mới loại sản phẩm
-- **Endpoint**: `POST /api/category`
-- **Request Body**:
-```json
-{
-  "categoryName": "Snacks & Bánh Kẹo"
-}
-```
-> *Lưu ý*: `categoryId` được hệ thống tự động sinh theo thứ tự chuẩn tăng dần: `LSP001`, `LSP002`, `LSP003`... Người dùng không cần và không được truyền `categoryId`.
-
-- **Response `201 CREATED`**:
-```json
-{
-  "status": 201,
-  "message": "Tạo loại sản phẩm thành công",
-  "data": {
-    "categoryId": "LSP001",
-    "categoryName": "Snacks & Bánh Kẹo",
-    "productCount": 0
-  }
-}
-```
-
-#### 4. Cập nhật loại sản phẩm
-- **Endpoint**: `PUT /api/category/:id`
-- **Request Body**:
-```json
-{
-  "categoryName": "Bánh Kẹo & Đồ Ăn Vặt"
-}
-```
-- **Response `200 OK`**:
-```json
-{
-  "status": 200,
-  "message": "Cập nhật loại sản phẩm thành công",
-  "data": {
-    "categoryId": "CAT-009",
-    "categoryName": "Bánh Kẹo & Đồ Ăn Vặt",
-    "productCount": 0
-  }
-}
-```
-
-#### 5. Xóa loại sản phẩm
-- **Endpoint**: `DELETE /api/category/:id`
-- **Mô tả**: Xóa loại sản phẩm khỏi hệ thống. Nếu loại sản phẩm đang chứa sản phẩm liên kết (`productCount > 0`), hệ thống trả về lỗi `409 CONFLICT`.
-- **Response `200 OK`**:
-```json
-{
-  "status": 200,
-  "message": "Xóa loại sản phẩm thành công"
 }
 ```
 
 ---
 
-### MODULE 5: NHẬP HÀNG (`/api/purchase-receipt`)
-> **Quyền**: `STORE_OWNER` hoặc `INVENTORY_MANAGER`.
+### MODULE 6: NHẬP HÀNG (`/api/purchase-receipt`)
+> **Quyền hạn**: `STORE_OWNER` hoặc `INVENTORY_MANAGER`.
 
-#### 1. Tạo phiếu nhập hàng
+#### 6.1. Tạo phiếu nhập hàng (Nhập kho)
 - **Endpoint**: `POST /api/purchase-receipt`
+- **Mô tả**: Tự động tăng tồn kho cho các sản phẩm đã có. Nếu sản phẩm mới (chưa có `productId`), hệ thống sẽ tạo mới sản phẩm trong kho.
 - **Request Body**:
 ```json
 {
-  "supplierName": "Công ty TNHH Vinamilk",
-  "note": "Nhập hàng đợt giữa tháng",
+  "supplierName": "Công ty TNHH Nước Giải Khát Coca-Cola",
   "items": [
     {
-      "productId": "prod-001",
-      "productName": "Sữa chua Vinamilk 100g",
-      "categoryId": "cat-01",
+      "productId": "SP000001",
+      "productName": "Nước ngọt Coca-Cola 320ml",
+      "categoryId": "LSP001",
+      "unitPrice": 10000.00,
       "purchasedQuantity": 100,
-      "purchasePrice": 6000.00,
-      "unitPrice": 8000.00,
-      "expirationDate": "2026-11-25T00:00:00"
+      "purchasePrice": 7500.00,
+      "expirationDate": "2027-01-01"
     }
   ]
 }
 ```
-> *Ghi chú*: Nếu sản phẩm chưa có mã, FE có thể để trống `productId`, hệ thống sẽ tự sinh UUID và tạo mới sản phẩm với giá bán `unitPrice`. Tồn kho sẽ tự động được cộng dồn.
-
 - **Response `201 CREATED`**:
 ```json
 {
   "status": 201,
   "message": "Nhập hàng thành công",
   "data": {
-    "voucherId": "vch-uuid-...",
-    "supplierName": "Công ty TNHH Vinamilk",
-    "createdAt": "2026-10-13T00:35:00",
-    "totalAmount": 600000.00,
+    "voucherId": "PN000001",
+    "supplierName": "Công ty TNHH Nước Giải Khát Coca-Cola",
+    "totalAmount": 750000.00,
+    "createdAt": "2026-10-14 16:00:00",
     "createdBy": {
-      "employeeId": "emp-uuid",
-      "fullName": "Lê Văn Kho"
+      "employeeId": "NV000003",
+      "fullName": "Lê Văn Kho",
+      "username": "inventory01"
     },
-    "importedProducts": [
+    "createdProducts": [
       {
-        "productId": "prod-001",
-        "productName": "Sữa chua Vinamilk 100g",
-        "purchasedQuantity": 100,
-        "purchasePrice": 6000.00,
-        "unitPrice": 8000.00,
-        "expirationDate": "2026-11-25T00:00:00"
+        "productId": "SP000001",
+        "productName": "Nước ngọt Coca-Cola 320ml",
+        "categoryId": "LSP001",
+        "unitPrice": 10000.00,
+        "stockQuantity": 250,
+        "expirationDate": "2027-01-01",
+        "productStatus": "ON_SALE"
       }
     ]
   }
 }
 ```
 
-#### 2. Danh sách phiếu nhập hàng
+---
+
+#### 6.2. Lấy danh sách phiếu nhập hàng
 - **Endpoint**: `GET /api/purchase-receipt`
 - **Query Params**: `page`, `limit`, `supplierName`, `employeeId`, `fromDate`, `toDate`
-
-#### 3. Chi tiết phiếu nhập hàng
-- **Endpoint**: `GET /api/purchase-receipt/:id`
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy danh sách phiếu nhập hàng thành công",
+  "data": [
+    {
+      "voucherId": "PN000001",
+      "supplierName": "Công ty TNHH Nước Giải Khát Coca-Cola",
+      "totalAmount": 750000.00,
+      "createdAt": "2026-10-14 16:00:00",
+      "createdBy": {
+        "employeeId": "NV000003",
+        "fullName": "Lê Văn Kho"
+      }
+    }
+  ],
+  "meta": {
+    "currentPage": 1,
+    "totalPages": 1,
+    "totalItems": 1,
+    "pageSize": 10
+  }
+}
+```
 
 ---
 
-### MODULE 6: BÁN HÀNG & HÓA ĐƠN (`/api/invoice`)
-> **Quyền**: `STORE_OWNER` hoặc `CASHIER`.
+#### 6.3. Chi tiết phiếu nhập hàng
+- **Endpoint**: `GET /api/purchase-receipt/:id`
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy chi tiết phiếu nhập hàng thành công",
+  "data": {
+    "voucherId": "PN000001",
+    "supplierName": "Công ty TNHH Nước Giải Khát Coca-Cola",
+    "totalAmount": 750000.00,
+    "createdAt": "2026-10-14 16:00:00",
+    "createdBy": {
+      "employeeId": "NV000003",
+      "fullName": "Lê Văn Kho",
+      "username": "inventory01"
+    },
+    "items": [
+      {
+        "purchaseDetailId": "CTPN000001",
+        "productId": "SP000001",
+        "productName": "Nước ngọt Coca-Cola 320ml",
+        "categoryName": "Nước giải khát",
+        "purchasedQuantity": 100,
+        "purchasePrice": 7500.00,
+        "lineTotal": 750000.00,
+        "expirationDate": "2027-01-01"
+      }
+    ]
+  }
+}
+```
 
-#### 1. Tạo hóa đơn mới (POS Checkout)
+---
+
+### MODULE 7: HÓA ĐƠN & BÁN HÀNG (`/api/invoice`)
+> **Quyền hạn**: Nhân viên đã đăng nhập (`CASHIER`, `STORE_OWNER`).
+
+#### 7.1. Tạo hóa đơn bán hàng (POS Checkout)
 - **Endpoint**: `POST /api/invoice`
+- **Mô tả**: Tự động trừ số lượng tồn kho sản phẩm. Trạng thái ban đầu là `PENDING`.
 - **Request Body**:
 ```json
 {
-  "phoneNumber": "0909123456",
-  "usePoints": false,
+  "customerId": "KH000001",
+  "useLoyaltyPoints": true,
   "items": [
     {
-      "productId": "prod-001",
-      "quantity": 3
+      "productId": "SP000001",
+      "quantity": 5
     }
   ]
 }
 ```
-> *Lưu ý*:
-> - `phoneNumber`: Tùy chọn. Nếu có, hệ thống tự động tìm và gắn khách hàng thân thiết.
-> - `usePoints`: `true` nếu khách muốn quy đổi điểm tích lũy thành giảm giá (tối đa 50% hóa đơn).
-> - Khi tạo hóa đơn, trạng thái hóa đơn mặc định là `PENDING` (chờ thanh toán). Tồn kho sản phẩm được trừ tự động.
-
+*(Nếu là khách vãng lai không có tài khoản, `customerId` có thể truyền `null` và `useLoyaltyPoints: false`)*.
 - **Response `201 CREATED`**:
 ```json
 {
   "status": 201,
   "message": "Tạo hóa đơn thành công",
   "data": {
-    "invoiceId": "inv-uuid-001",
-    "createdAt": "2026-10-13T00:38:00",
+    "invoiceId": "HD000001",
+    "createdAt": "2026-10-14 16:15:00",
     "status": "PENDING",
-    "originalTotal": 24000.00,
-    "discountAmount": 0.00,
-    "finalTotal": 24000.00,
-    "pointsUsed": 0,
-    "pointsEarned": 200,
+    "originalTotal": 50000.00,
+    "discountAmount": 5000.00,
+    "finalTotal": 45000.00,
     "employee": {
-      "employeeId": "emp-uuid",
+      "employeeId": "NV000002",
       "fullName": "Trần Thị Thu Ngân"
     },
     "customer": {
-      "customerId": "cust-01-uuid",
+      "customerId": "KH000001",
       "fullName": "Nguyễn Hoàng Nam",
-      "phoneNumber": "0909123456"
+      "phoneNumber": "0909123456",
+      "loyaltyPoints": 300
     },
     "items": [
       {
-        "productId": "prod-001",
-        "productName": "Sữa chua Vinamilk 100g",
-        "quantity": 3,
-        "unitPrice": 8000.00,
-        "subtotal": 24000.00
+        "invoiceDetailId": "CTHD000001",
+        "productId": "SP000001",
+        "productName": "Nước ngọt Coca-Cola 320ml",
+        "quantity": 5,
+        "unitPrice": 10000.00,
+        "subtotal": 50000.00
       }
     ]
   }
 }
 ```
 
-#### 2. Danh sách hóa đơn
+---
+
+#### 7.2. Lấy danh sách hóa đơn
 - **Endpoint**: `GET /api/invoice`
 - **Query Params**: `page`, `limit`, `status` (`PENDING`, `PAID`, `CANCELLED`), `fromDate`, `toDate`, `customerId`, `employeeId`
-
-#### 3. Chi tiết hóa đơn
-- **Endpoint**: `GET /api/invoice/:id`
-
-#### 4. Hủy hóa đơn
-- **Endpoint**: `DELETE /api/invoice/:id`
-- **Mô tả**: Chỉ hủy được hóa đơn ở trạng thái `PENDING`. Khi hủy, số lượng tồn kho của các sản phẩm sẽ được hoàn lại tự động.
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy danh sách hóa đơn thành công",
+  "data": [
+    {
+      "invoiceId": "HD000001",
+      "createdAt": "2026-10-14 16:15:00",
+      "status": "PENDING",
+      "originalTotal": 50000.00,
+      "discountAmount": 5000.00,
+      "finalAmount": 45000.00,
+      "employee": {
+        "employeeId": "NV000002",
+        "fullName": "Trần Thị Thu Ngân"
+      },
+      "customer": {
+        "customerId": "KH000001",
+        "fullName": "Nguyễn Hoàng Nam",
+        "phoneNumber": "0909123456"
+      }
+    }
+  ],
+  "meta": {
+    "currentPage": 1,
+    "totalPages": 1,
+    "totalItems": 1,
+    "pageSize": 10
+  }
+}
+```
 
 ---
 
-### MODULE 7: THANH TOÁN (`/api/payment`)
-> **Quyền**: `STORE_OWNER` hoặc `CASHIER`. (Riêng webhook VNPay return/ipn là Public).
-
-#### 1. Xử lý thanh toán hóa đơn
-- **Endpoint**: `POST /api/payment/process`
-- **Request Body (Tiền mặt - CASH)**:
+#### 7.3. Chi tiết hóa đơn
+- **Endpoint**: `GET /api/invoice/:id`
+- **Response `200 OK`**:
 ```json
 {
-  "invoiceId": "inv-uuid-001",
+  "status": 200,
+  "message": "Lấy chi tiết hóa đơn thành công",
+  "data": {
+    "invoiceId": "HD000001",
+    "createdAt": "2026-10-14 16:15:00",
+    "status": "PENDING",
+    "originalTotal": 50000.00,
+    "discountAmount": 5000.00,
+    "finalAmount": 45000.00,
+    "employee": {
+      "employeeId": "NV000002",
+      "fullName": "Trần Thị Thu Ngân"
+    },
+    "customer": {
+      "customerId": "KH000001",
+      "fullName": "Nguyễn Hoàng Nam",
+      "phoneNumber": "0909123456"
+    },
+    "items": [
+      {
+        "invoiceDetailId": "CTHD000001",
+        "productId": "SP000001",
+        "productName": "Nước ngọt Coca-Cola 320ml",
+        "quantity": 5,
+        "unitPrice": 10000.00,
+        "subtotal": 50000.00
+      }
+    ]
+  }
+}
+```
+
+---
+
+#### 7.4. Hủy hóa đơn
+- **Endpoint**: `DELETE /api/invoice/:id`
+- **Mô tả**: Hủy hóa đơn (chỉ áp dụng cho hóa đơn chưa thanh toán - `PENDING`). Số lượng sản phẩm sẽ được tự động hoàn trả lại tồn kho.
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Hủy hóa đơn thành công",
+  "data": {
+    "invoiceId": "HD000001",
+    "status": "CANCELLED"
+  }
+}
+```
+
+---
+
+### MODULE 8: THANH TOÁN TIỀN MẶT & VNPAY (`/api/payment`)
+> **Quyền hạn**: `STORE_OWNER` hoặc `CASHIER`. (Các callback VNPay là Public).
+
+#### 8.1. Khởi tạo thanh toán hóa đơn
+- **Endpoint**: `POST /api/payment/process`
+- **Request Body 1 (Tiền mặt - CASH)**:
+```json
+{
+  "invoiceId": "HD000001",
   "paymentMethod": "CASH"
 }
 ```
@@ -608,20 +919,20 @@ Hệ thống hỗ trợ 3 chức vụ (`position`):
   "status": 200,
   "message": "Khởi tạo thanh toán thành công",
   "data": {
-    "transactionId": "tx-uuid-...",
-    "invoiceId": "inv-uuid-001",
-    "amount": 24000.00,
+    "transactionId": "GD000001",
+    "invoiceId": "HD000001",
+    "amount": 45000.00,
     "paymentMethod": "CASH",
     "status": "PAID",
-    "paymentTime": "2026-10-13T00:40:00Z"
+    "paymentTime": "2026-10-14 16:20:00"
   }
 }
 ```
 
-- **Request Body (Chuyển khoản VNPay - VNPAY)**:
+- **Request Body 2 (Cổng thanh toán online - VNPAY)**:
 ```json
 {
-  "invoiceId": "inv-uuid-001",
+  "invoiceId": "HD000001",
   "paymentMethod": "VNPAY"
 }
 ```
@@ -631,55 +942,120 @@ Hệ thống hỗ trợ 3 chức vụ (`position`):
   "status": 200,
   "message": "Khởi tạo thanh toán thành công",
   "data": {
-    "transactionId": "tx-uuid-...",
-    "invoiceId": "inv-uuid-001",
-    "amount": 24000.00,
-    "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=2400000&..."
+    "transactionId": "GD000002",
+    "invoiceId": "HD000001",
+    "amount": 45000.00,
+    "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=4500000&vnp_Command=pay&..."
   }
 }
 ```
-> **Luồng FE với VNPay**: Khi nhận được `paymentUrl`, FE chuyển hướng (redirect) người dùng sang link đó để quét mã QR / nhập thẻ. Sau khi thanh toán xong, cổng VNPay sẽ chuyển hướng trình duyệt về `GET /api/payment/vnpay-return`.
+> **Luồng tích hợp VNPay cho Frontend**:
+> 1. Nhận `paymentUrl` từ phản hồi trên.
+> 2. Trình duyệt redirect người dùng đến URL đó: `window.location.href = res.data.data.paymentUrl`.
+> 3. Khách hàng quét mã VNPAY-QR hoặc nhập thẻ test.
+> 4. Cổng VNPay tự động gọi Webhook Server Backend (`/api/payment/vnpay-ipn`) và redirect người dùng về trang return (`/api/payment/vnpay-return`).
 
-#### 2. Lấy danh sách giao dịch thanh toán
+---
+
+#### 8.2. Danh sách các giao dịch thanh toán
 - **Endpoint**: `GET /api/payment/transactions`
 - **Query Params**: `page`, `limit`, `paymentMethod` (`CASH`, `VNPAY`), `status` (`PAID`, `UNPAID`), `fromDate`, `toDate`
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy danh sách giao dịch thành công",
+  "data": [
+    {
+      "transactionId": "GD000001",
+      "invoiceId": "HD000001",
+      "paymentMethod": "CASH",
+      "amount": 45000.00,
+      "status": "PAID",
+      "paymentTime": "2026-10-14 16:20:00",
+      "cashierName": "Trần Thị Thu Ngân"
+    }
+  ],
+  "meta": {
+    "currentPage": 1,
+    "totalPages": 1,
+    "totalItems": 1,
+    "pageSize": 10
+  }
+}
+```
 
-#### 3. Báo cáo doanh thu thanh toán
+---
+
+#### 8.3. Thống kê nhanh tổng quan thanh toán
 - **Endpoint**: `GET /api/payment/summary`
-- **Query Params**: `fromDate`, `toDate`
+- **Query Params**: `fromDate`, `toDate` (`YYYY-MM-DD`)
 - **Response `200 OK`**:
 ```json
 {
   "status": 200,
   "message": "Lấy thông tin tổng kết doanh thu thành công",
   "data": {
-    "totalCash": 1500000.00,
-    "totalVnpay": 850000.00,
-    "totalRevenue": 2350000.00,
-    "totalTransactions": 18
+    "originalTotal": 5000000.00,
+    "discountAmount": 300000.00,
+    "finalAmount": 4700000.00,
+    "totalPaid": 4700000.00,
+    "remainingAmount": 0.00
   }
 }
 ```
 
-#### 4. Xem lịch sử thanh toán của 1 hóa đơn
+---
+
+#### 8.4. Lịch sử thanh toán của 1 hóa đơn
 - **Endpoint**: `GET /api/payment/history/:invoiceId`
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy lịch sử thanh toán hóa đơn thành công",
+  "data": {
+    "invoiceId": "HD000001",
+    "invoiceStatus": "PAID",
+    "summary": {
+      "originalTotal": 50000.00,
+      "discountAmount": 5000.00,
+      "finalAmount": 45000.00,
+      "totalPaid": 45000.00,
+      "remainingAmount": 0.00
+    },
+    "transactions": [
+      {
+        "transactionId": "GD000001",
+        "invoiceId": "HD000001",
+        "paymentMethod": "CASH",
+        "amount": 45000.00,
+        "status": "PAID",
+        "paymentTime": "2026-10-14 16:20:00",
+        "cashierName": "Trần Thị Thu Ngân"
+      }
+    ]
+  }
+}
+```
 
 ---
 
-### MODULE 8: ĐỔI TRẢ HÀNG (`/api/return-receipt`)
-> **Quyền**: `STORE_OWNER` hoặc `CASHIER`.
+### MODULE 9: TRẢ HÀNG & HOÀN TIỀN (`/api/return-receipt`)
+> **Quyền hạn**: Nhân viên đã đăng nhập (`CASHIER`, `STORE_OWNER`).
 
-#### 1. Tạo phiếu trả hàng
+#### 9.1. Tạo phiếu trả hàng
 - **Endpoint**: `POST /api/return-receipt`
+- **Mô tả**: Ghi nhận trả hàng từ hóa đơn đã thanh toán. Tồn kho sản phẩm được cộng lại tự động và tính toán số tiền hoàn trả (`refundAmount`).
 - **Request Body**:
 ```json
 {
-  "invoiceId": "inv-uuid-001",
-  "reason": "Hàng bị móp méo khi vận chuyển",
+  "invoiceId": "HD000001",
+  "reason": "Khách mua nhầm loại sản phẩm, hàng còn nguyên tem",
   "items": [
     {
-      "productId": "prod-001",
-      "returnQuantity": 1
+      "productId": "SP000001",
+      "returnedQuantity": 1
     }
   ]
 }
@@ -690,50 +1066,189 @@ Hệ thống hỗ trợ 3 chức vụ (`position`):
   "status": 201,
   "message": "Tạo phiếu trả hàng thành công",
   "data": {
-    "returnReceiptId": "ret-uuid-...",
-    "invoiceId": "inv-uuid-001",
-    "createdAt": "2026-10-13T00:45:00",
-    "totalRefundAmount": 8000.00,
-    "reason": "Hàng bị móp méo khi vận chuyển",
-    "employee": {
-      "employeeId": "emp-uuid",
-      "fullName": "Trần Thị Thu Ngân"
+    "returnReceiptId": "TH000001",
+    "invoiceId": "HD000001",
+    "reason": "Khách mua nhầm loại sản phẩm, hàng còn nguyên tem",
+    "refundAmount": 9000.00,
+    "createdAt": "2026-10-14 16:30:00",
+    "createdBy": {
+      "employeeId": "NV000002",
+      "fullName": "Trần Thị Thu Ngân",
+      "username": "cashier01"
+    }
+  }
+}
+```
+
+---
+
+#### 9.2. Lấy danh sách phiếu trả hàng
+- **Endpoint**: `GET /api/return-receipt`
+- **Query Params**: `page`, `limit`, `invoiceId`, `employeeId`, `fromDate`, `toDate`
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy danh sách phiếu trả hàng thành công",
+  "data": [
+    {
+      "returnReceiptId": "TH000001",
+      "invoiceId": "HD000001",
+      "refundAmount": 9000.00,
+      "reason": "Khách mua nhầm loại sản phẩm, hàng còn nguyên tem",
+      "createdAt": "2026-10-14 16:30:00",
+      "createdBy": {
+        "employeeId": "NV000002",
+        "fullName": "Trần Thị Thu Ngân"
+      }
+    }
+  ],
+  "meta": {
+    "currentPage": 1,
+    "totalPages": 1,
+    "totalItems": 1,
+    "pageSize": 10
+  }
+}
+```
+
+---
+
+#### 9.3. Chi tiết phiếu trả hàng
+- **Endpoint**: `GET /api/return-receipt/:id`
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy chi tiết phiếu trả hàng thành công",
+  "data": {
+    "returnReceiptId": "TH000001",
+    "invoiceId": "HD000001",
+    "refundAmount": 9000.00,
+    "reason": "Khách mua nhầm loại sản phẩm, hàng còn nguyên tem",
+    "createdAt": "2026-10-14 16:30:00",
+    "createdBy": {
+      "employeeId": "NV000002",
+      "fullName": "Trần Thị Thu Ngân",
+      "username": "cashier01"
     },
-    "items": [
+    "customer": {
+      "customerId": "KH000001",
+      "fullName": "Nguyễn Hoàng Nam",
+      "phoneNumber": "0909123456"
+    }
+  }
+}
+```
+
+---
+
+### MODULE 10: BÁO CÁO DOANH THU, KIỂM KÊ & XUẤT EXCEL (`/api/report`)
+> **Quyền hạn**: `STORE_OWNER` hoặc `INVENTORY_MANAGER`.
+
+#### 10.1. Báo cáo doanh thu (Revenue Report)
+- **Endpoint**: `GET /api/report/revenue`
+- **Query Params**:
+  - `type` (Bắt buộc một trong các giá trị: `DAILY`, `MONTHLY`, `YEARLY`, `CUSTOM`)
+  - `date`: Định dạng `YYYY-MM-DD` (bắt buộc khi `type=DAILY`, ví dụ `2026-10-14`)
+  - `month`: Số tháng từ `1` đến `12` (bắt buộc khi `type=MONTHLY`)
+  - `year`: Năm `YYYY` (bắt buộc khi `type=MONTHLY` hoặc `type=YEARLY`, ví dụ `2026`)
+  - `fromDate`, `toDate`: Định dạng `YYYY-MM-DD` (khi `type=CUSTOM`)
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy báo cáo doanh thu thành công",
+  "data": {
+    "filter": {
+      "type": "DAILY",
+      "date": "2026-10-14",
+      "month": null,
+      "year": null,
+      "from": null,
+      "to": null
+    },
+    "summary": {
+      "totalRevenue": 15450000.00,
+      "originalTotal": 16200000.00,
+      "totalDiscount": 750000.00,
+      "totalRefund": 120000.00,
+      "netRevenue": 15330000.00,
+      "totalInvoices": 52,
+      "paymentMethodBreakdown": {
+        "cash": 9250000.00,
+        "online": 6200000.00
+      }
+    },
+    "timeline": [
       {
-        "productId": "prod-001",
-        "productName": "Sữa chua Vinamilk 100g",
-        "returnQuantity": 1,
-        "refundPrice": 8000.00
+        "timePoint": "08:00",
+        "revenue": 1250000.00,
+        "invoicesCount": 4,
+        "cashAmount": 850000.00,
+        "onlineAmount": 400000.00
+      },
+      {
+        "timePoint": "09:00",
+        "revenue": 2100000.00,
+        "invoicesCount": 7,
+        "cashAmount": 1300000.00,
+        "onlineAmount": 800000.00
       }
     ]
   }
 }
 ```
 
-#### 2. Danh sách phiếu trả hàng
-- **Endpoint**: `GET /api/return-receipt`
-- **Query Params**: `page`, `limit`, `invoiceId`, `employeeId`, `fromDate`, `toDate`
+---
 
-#### 3. Chi tiết phiếu trả hàng
-- **Endpoint**: `GET /api/return-receipt/:id`
+#### 10.2. Xuất file Excel phiếu & báo cáo (Excel Export)
+- **Endpoint**: `GET /api/report/export-excel` (hoặc `GET /api/report/excel`)
+- **Content-Type Trả về**: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+- **Header Trả về**: `Content-Disposition: attachment; filename="..."`
+- **Query Params**:
+  - `target` (hoặc `type`):
+    - `PURCHASE`: Xuất phiếu nhập hàng.
+    - `DISCREPANCY`: Xuất biên bản kiểm kê / phiếu xử lý hủy hàng hóa lệch hỏng.
+  - `receiptId` (hoặc `id`): Mã phiếu cụ thể cần in (ví dụ: `PN000001` hoặc `KK000001`). Nếu truyền trường này, hệ thống sẽ xuất chi tiết từng mặt hàng của phiếu.
+  - Trường hợp xuất danh sách tổng hợp theo chu kỳ (không truyền `receiptId`):
+    - `filterType` (hoặc `period`): `DAILY` | `MONTHLY` | `YEARLY` | `ALL`
+    - `date`: `YYYY-MM-DD` (khi `filterType=DAILY`)
+    - `month`: `1` - `12` (khi `filterType=MONTHLY`)
+    - `year`: `YYYY`
+    - `fromDate`, `toDate`: `YYYY-MM-DD`
+
+> **Cách FE xử lý tải file Excel với Axios**:
+> ```javascript
+> const downloadExcel = async () => {
+>   const response = await api.get('/report/export-excel', {
+>     params: { target: 'PURCHASE', receiptId: 'PN000001' },
+>     responseType: 'blob', // Bắt buộc để nhận binary file
+>   });
+>   const url = window.URL.createObjectURL(new Blob([response]));
+>   const link = document.createElement('a');
+>   link.href = url;
+>   link.setAttribute('download', 'phieu_nhap_PN000001.xlsx');
+>   document.body.appendChild(link);
+>   link.click();
+>   link.remove();
+> };
+> ```
 
 ---
 
-### MODULE 9: BÁO CÁO KIỂM KÊ KHO (`/api/report`)
-> **Quyền**: `STORE_OWNER` hoặc `INVENTORY_MANAGER`.
-
-#### 1. Tạo biên bản kiểm kê kho (Lệch tồn kho)
+#### 10.3. Tạo biên bản kiểm kê kho (Lệch tồn kho)
 - **Endpoint**: `POST /api/report/stock-discrepancy`
 - **Request Body**:
 ```json
 {
-  "note": "Kiểm kê định kỳ tháng 10",
+  "auditTitle": "Kiểm kê kho định kỳ giữa tháng 10",
+  "note": "Kiểm tra hư hỏng và hạn sử dụng",
   "items": [
     {
-      "productId": "prod-001",
-      "actualQuantity": 82,
-      "discrepancyReason": "Hư hỏng bể hộp trong kho"
+      "productId": "SP000001",
+      "actualQuantity": 145,
+      "reason": "Hư hỏng bể 5 hộp trong quá trình xếp kệ"
     }
   ]
 }
@@ -744,48 +1259,112 @@ Hệ thống hỗ trợ 3 chức vụ (`position`):
   "status": 201,
   "message": "Tạo báo cáo kiểm kê kho thành công, đã gửi yêu cầu xử lý đến Chủ cửa hàng",
   "data": {
-    "reportId": "rep-uuid-...",
-    "createdAt": "2026-10-13T00:50:00",
-    "note": "Kiểm kê định kỳ tháng 10",
+    "reportId": "KK000001",
+    "auditTitle": "Kiểm kê kho định kỳ giữa tháng 10",
+    "createdAt": "2026-10-14 16:40:00",
     "createdBy": {
-      "employeeId": "emp-uuid",
+      "employeeId": "NV000003",
       "fullName": "Lê Văn Kho"
     },
-    "discrepancies": [
+    "totalDiscrepancyItems": 1,
+    "items": [
       {
-        "productId": "prod-001",
-        "productName": "Sữa chua Vinamilk 100g",
-        "systemQuantity": 85,
-        "actualQuantity": 82,
-        "difference": -3,
-        "discrepancyReason": "Hư hỏng bể hộp trong kho"
+        "productId": "SP000001",
+        "productName": "Nước ngọt Coca-Cola 320ml",
+        "systemQuantity": 150,
+        "actualQuantity": 145,
+        "difference": -5,
+        "status": "SHORTAGE",
+        "reason": "Hư hỏng bể 5 hộp trong quá trình xếp kệ"
       }
     ]
   }
 }
 ```
 
-#### 2. Danh sách báo cáo kiểm kê kho
+---
+
+#### 10.4. Lấy danh sách báo cáo kiểm kê kho
 - **Endpoint**: `GET /api/report/stock-discrepancy`
 - **Query Params**: `page`, `limit`, `employeeId`, `fromDate`, `toDate`
-
-#### 3. Chi tiết báo cáo kiểm kê kho
-- **Endpoint**: `GET /api/report/stock-discrepancy/:id`
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy danh sách báo cáo kiểm kê kho thành công",
+  "data": [
+    {
+      "reportId": "KK000001",
+      "auditTitle": "Kiểm kê kho định kỳ giữa tháng 10",
+      "createdAt": "2026-10-14 16:40:00",
+      "totalDiscrepancyItems": 1,
+      "createdBy": {
+        "employeeId": "NV000003",
+        "fullName": "Lê Văn Kho",
+        "username": "inventory01"
+      }
+    }
+  ],
+  "meta": {
+    "currentPage": 1,
+    "totalPages": 1,
+    "totalItems": 1,
+    "pageSize": 10
+  }
+}
+```
 
 ---
 
-### MODULE 10: ĐÁNH GIÁ KHÁCH HÀNG (`/api/feedback`)
+#### 10.5. Lấy chi tiết báo cáo kiểm kê kho
+- **Endpoint**: `GET /api/report/stock-discrepancy/:id`
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy chi tiết báo cáo kiểm kê kho thành công",
+  "data": {
+    "reportId": "KK000001",
+    "auditTitle": "Kiểm kê kho định kỳ giữa tháng 10",
+    "note": "Kiểm tra hư hỏng và hạn sử dụng",
+    "createdAt": "2026-10-14 16:40:00",
+    "createdBy": {
+      "employeeId": "NV000003",
+      "fullName": "Lê Văn Kho",
+      "username": "inventory01"
+    },
+    "totalDiscrepancyItems": 1,
+    "items": [
+      {
+        "detailId": "CTKK000001",
+        "productId": "SP000001",
+        "productName": "Nước ngọt Coca-Cola 320ml",
+        "categoryName": "Nước giải khát",
+        "systemQuantity": 150,
+        "actualQuantity": 145,
+        "difference": -5,
+        "status": "SHORTAGE",
+        "reason": "Hư hỏng bể 5 hộp trong quá trình xếp kệ"
+      }
+    ]
+  }
+}
+```
 
-#### 1. Gửi đánh giá phản hồi (Public cho khách hàng)
+---
+
+### MODULE 11: ĐÁNH GIÁ CỬA HÀNG (`/api/feedback`)
+
+#### 11.1. Gửi đánh giá phản hồi (Public cho khách hàng)
 - **Endpoint**: `POST /api/feedback`
-- **Quyền**: Public (Áp dụng **RateLimitFilter**: Tối đa 5 lượt gửi/phút/IP để chống spam)
+- **Quyền**: Public
 - **Request Body**:
 ```json
 {
   "customerName": "Khách hàng thân thiết",
   "phoneNumber": "0909123456",
   "rating": 5,
-  "comment": "Dịch vụ thanh toán rất nhanh, nhân viên thân thiện!"
+  "comment": "Dịch vụ thanh toán rất nhanh, nhân viên thân thiện và nhiệt tình!"
 }
 ```
 - **Response `201 CREATED`**:
@@ -794,20 +1373,22 @@ Hệ thống hỗ trợ 3 chức vụ (`position`):
   "status": 201,
   "message": "Cảm ơn bạn đã gửi đánh giá cho cửa hàng!",
   "data": {
-    "feedbackId": "fb-uuid-...",
-    "createdAt": "2026-10-13T00:52:00.000Z"
+    "feedbackId": "DG000001",
+    "createdAt": "2026-10-14 16:50:00"
   }
 }
 ```
 
-#### 2. Xem danh sách đánh giá & Tổng hợp thống kê
+---
+
+#### 11.2. Xem danh sách đánh giá & Thống kê số sao
 - **Endpoint**: `GET /api/feedback`
 - **Quyền**: Chỉ dành cho `STORE_OWNER`
 - **Query Params**:
   - `page` (default: 1)
   - `limit` (default: 10)
   - `rating` (lọc từ 1 đến 5 sao)
-  - `fromDate`, `toDate` (định dạng `YYYY-MM-DD`)
+  - `fromDate`, `toDate` (`YYYY-MM-DD`)
 - **Response `200 OK`**:
 ```json
 {
@@ -827,45 +1408,64 @@ Hệ thống hỗ trợ 3 chức vụ (`position`):
     },
     "feedbacks": [
       {
-        "feedbackId": "fb-uuid-...",
+        "feedbackId": "DG000001",
         "customerName": "Khách hàng thân thiết",
         "phoneNumber": "0909123456",
         "rating": 5,
-        "comment": "Dịch vụ thanh toán rất nhanh, nhân viên thân thiện!",
-        "createdAt": "2026-10-13T00:52:00.000Z"
+        "comment": "Dịch vụ thanh toán rất nhanh, nhân viên thân thiện và nhiệt tình!",
+        "createdAt": "2026-10-14 16:50:00"
       }
     ]
   }
 }
 ```
 
-#### 3. Chi tiết đánh giá
+---
+
+#### 11.3. Chi tiết đánh giá
 - **Endpoint**: `GET /api/feedback/:id`
 - **Quyền**: Chỉ dành cho `STORE_OWNER`
+- **Response `200 OK`**:
+```json
+{
+  "status": 200,
+  "message": "Lấy chi tiết đánh giá thành công",
+  "data": {
+    "feedbackId": "DG000001",
+    "customerName": "Khách hàng thân thiết",
+    "phoneNumber": "0909123456",
+    "rating": 5,
+    "comment": "Dịch vụ thanh toán rất nhanh, nhân viên thân thiện và nhiệt tình!",
+    "createdAt": "2026-10-14 16:50:00"
+  }
+}
+```
 
 ---
 
-## 4. HƯỚNG DẪN CẤU HÌNH FRONTEND (FE INTEGRATION GUIDE)
+## 4. HƯỚNG DẪN TÍCH HỢP CHO FRONTEND (FE INTEGRATION TEMPLATE)
 
-### 4.1. Cấu hình Axios / Fetch Client
-Nên cấu hình một instance Axios dùng chung với Interceptor tự động gắn Access Token và xử lý Refresh Token khi gặp lỗi `401`:
+File cấu hình mẫu Axios hoàn chỉnh kèm Interceptors tự động Refresh Token và xử lý mã lỗi:
 
-```javascript
-import axios from 'axios';
+```typescript
+// src/api/axiosClient.ts
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-const api = axios.create({
-  baseURL: 'http://localhost:8080/QuanLySieuThi/api',
-  withCredentials: true, // Bắt buộc true để trình duyệt tự gửi Cookie refreshToken
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/QuanLySieuThi/api';
+
+export const axiosClient = axios.create({
+  baseURL: BASE_URL,
+  withCredentials: true, // RẤT QUAN TRỌNG: Để trình duyệt tự gửi & nhận Cookie refreshToken HttpOnly
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request Interceptor: Tự động đính kèm Bearer token
-api.interceptors.request.use(
-  (config) => {
+// 1. Request Interceptor: Tự động đính kèm Access Token vào mọi request
+axiosClient.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('accessToken');
-    if (token) {
+    if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -873,30 +1473,79 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Tự động refresh token nếu 401
-api.interceptors.response.use(
-  (response) => response.data,
-  async (error) => {
-    const originalRequest = error.config;
+// 2. Response Interceptor: Tự động refresh token nếu gặp 401
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value?: unknown) => void;
+  reject: (reason?: unknown) => void;
+}> = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+axiosClient.interceptors.response.use(
+  (response) => {
+    // Trả về data trực tiếp
+    return response.data;
+  },
+  async (error: AxiosError<{ status: number; message: string }>) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
     if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+            }
+            return axiosClient(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
       originalRequest._retry = true;
+      isRefreshing = true;
+
       try {
-        const res = await axios.post('http://localhost:8080/QuanLySieuThi/api/auth/refresh', {}, {
-          withCredentials: true,
-        });
-        const newAccessToken = res.data.data.accessToken;
+        // Gọi endpoint refresh token (sử dụng refreshToken từ cookie)
+        const refreshResponse = await axios.post(
+          `${BASE_URL}/auth/refresh`,
+          {},
+          { withCredentials: true }
+        );
+
+        const newAccessToken = refreshResponse.data.data.accessToken;
         localStorage.setItem('accessToken', newAccessToken);
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        return api(originalRequest);
-      } catch (refreshErr) {
+
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        }
+        processQueue(null, newAccessToken);
+        return axiosClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
         localStorage.removeItem('accessToken');
+        localStorage.removeItem('currentUser');
         window.location.href = '/login';
-        return Promise.reject(refreshErr);
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
-    return Promise.reject(error.response?.data || error.message);
+
+    return Promise.reject(error.response?.data || error);
   }
 );
 
-export default api;
+export default axiosClient;
 ```

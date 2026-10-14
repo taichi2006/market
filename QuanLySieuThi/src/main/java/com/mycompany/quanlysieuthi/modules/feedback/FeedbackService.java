@@ -10,7 +10,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import com.mycompany.quanlysieuthi.util.IdGenerator;
 import java.util.regex.Pattern;
 
@@ -141,7 +140,7 @@ public class FeedbackService {
 
     public FeedbackResponse.Detail getFeedbackDetail(String feedbackId) {
         if (feedbackId == null || feedbackId.trim().isEmpty()) {
-            throw new IllegalArgumentException("ID khÃ´ng Ä‘Ãºng Ä‘á»‹nh dáº¡ng UUID.");
+            throw new IllegalArgumentException("ID đánh giá không hợp lệ hoặc để trống.");
         }
 
 

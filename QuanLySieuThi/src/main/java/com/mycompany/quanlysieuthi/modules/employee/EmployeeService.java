@@ -7,7 +7,6 @@ import com.mycompany.quanlysieuthi.util.PasswordUtil;
 
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import com.mycompany.quanlysieuthi.util.IdGenerator;
 import java.util.stream.Collectors;
 
@@ -29,48 +28,49 @@ public class EmployeeService {
     }
 
     /**
-     * Check if a string is a valid UUID or valid employee ID format.
+     * Check if a string is a valid ID (not null or empty).
      */
     public static boolean isValidId(String id) {
-        if (id == null || id.trim().isEmpty()) {
-            return false;
-        }
-        return id.trim().matches("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
-                || id.startsWith("EMP-");
+        return id != null && !id.trim().isEmpty();
     }
+
+    private static final java.util.regex.Pattern PHONE_PATTERN = java.util.regex.Pattern.compile("^[0-9+]{9,15}$");
 
     /**
      * 1. Create/register a new employee account (POST /api/employee).
      */
     public EmployeeResponse createEmployee(EmployeeRequest request) {
         if (request == null) {
-            throw new IllegalArgumentException("Dữ liệu nhân viên không được để trống");
+            throw new BadRequestException("Dữ liệu nhân viên không được để trống");
         }
         if (request.getFullName() == null || request.getFullName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Họ và tên không được để trống");
+            throw new BadRequestException("Họ và tên không được để trống");
         }
         if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
-            throw new IllegalArgumentException("Tên đăng nhập không được để trống");
+            throw new BadRequestException("Tên đăng nhập không được để trống");
         }
         if (request.getPassword() == null || request.getPassword().trim().isEmpty()) {
-            throw new IllegalArgumentException("Mật khẩu không được để trống");
+            throw new BadRequestException("Mật khẩu không được để trống");
         }
         if (request.getPhoneNumber() == null || request.getPhoneNumber().trim().isEmpty()) {
-            throw new IllegalArgumentException("Số điện thoại không được để trống");
+            throw new BadRequestException("Số điện thoại không được để trống");
+        }
+        String phoneNumber = request.getPhoneNumber().trim();
+        if (!PHONE_PATTERN.matcher(phoneNumber).matches()) {
+            throw new BadRequestException("Số điện thoại không đúng định dạng (yêu cầu từ 9 đến 15 chữ số).");
         }
         if (request.getPosition() == null || !VALID_POSITIONS.contains(request.getPosition().trim().toUpperCase())) {
-            throw new IllegalArgumentException("Thiếu thông tin bắt buộc hoặc position không nằm trong [STORE_OWNER, CASHIER, INVENTORY_MANAGER]");
+            throw new BadRequestException("Thiếu thông tin bắt buộc hoặc position không nằm trong [STORE_OWNER, CASHIER, INVENTORY_MANAGER]");
         }
 
         String username = request.getUsername().trim();
-        String phoneNumber = request.getPhoneNumber().trim();
 
         if (employeeRepository.findByUsername(username).isPresent()) {
-            throw new ConflictException("username hoặc phone_number đã tồn tại.");
+            throw new ConflictException("Tên đăng nhập (username) đã được sử dụng.");
         }
 
         if (employeeRepository.findByPhoneNumber(phoneNumber).isPresent()) {
-            throw new ConflictException("username hoặc phone_number đã tồn tại.");
+            throw new ConflictException("Số điện thoại (phone_number) đã được sử dụng.");
         }
 
         String employeeId = IdGenerator.nextEmployeeId();
@@ -122,12 +122,13 @@ public class EmployeeService {
      */
     public EmployeeResponse getEmployeeById(String id) {
         if (!isValidId(id)) {
-            throw new IllegalArgumentException("ID không đúng định dạng [UUID]");
+            throw new BadRequestException("Mã nhân viên (ID) không hợp lệ hoặc để trống.");
         }
 
-        return employeeRepository.findById(id.trim())
-                .map(this::toResponse)
-                .orElse(null);
+        Employee employee = employeeRepository.findByIdIgnoreCase(id.trim())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy nhân viên với mã: " + id.trim()));
+
+        return toResponse(employee);
     }
 
     /**
@@ -135,30 +136,39 @@ public class EmployeeService {
      */
     public EmployeeResponse updateEmployee(String id, EmployeeRequest request) {
         if (!isValidId(id)) {
-            throw new IllegalArgumentException("ID không đúng định dạng [UUID]");
+            throw new BadRequestException("Mã nhân viên (ID) không hợp lệ hoặc để trống.");
         }
         if (request == null) {
-            throw new IllegalArgumentException("Thiếu thông tin bắt buộc hoặc position không nằm trong [STORE_OWNER, CASHIER, INVENTORY_MANAGER]");
+            throw new BadRequestException("Dữ liệu cập nhật nhân viên không được để trống.");
         }
         if (request.getFullName() == null || request.getFullName().trim().isEmpty() ||
                 request.getPhoneNumber() == null || request.getPhoneNumber().trim().isEmpty() ||
                 request.getPosition() == null || !VALID_POSITIONS.contains(request.getPosition().trim().toUpperCase())) {
-            throw new IllegalArgumentException("Thiếu thông tin bắt buộc hoặc position không nằm trong [STORE_OWNER, CASHIER, INVENTORY_MANAGER]");
+            throw new BadRequestException("Thiếu thông tin bắt buộc hoặc position không nằm trong [STORE_OWNER, CASHIER, INVENTORY_MANAGER]");
         }
 
-        Employee existing = employeeRepository.findById(id.trim()).orElse(null);
-        if (existing == null) {
-            return null;
-        }
+        Employee existing = employeeRepository.findByIdIgnoreCase(id.trim())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy nhân viên với mã: " + id.trim()));
 
         String newPhone = request.getPhoneNumber().trim();
-        if (employeeRepository.findByPhoneNumberExcludingId(newPhone, id.trim()).isPresent()) {
+        if (!PHONE_PATTERN.matcher(newPhone).matches()) {
+            throw new BadRequestException("Số điện thoại không đúng định dạng (yêu cầu từ 9 đến 15 chữ số).");
+        }
+        if (employeeRepository.findByPhoneNumberExcludingId(newPhone, existing.getEmployeeId()).isPresent()) {
             throw new ConflictException("Số điện thoại (phone_number) đã được sử dụng bởi nhân viên khác.");
+        }
+
+        String newPosition = request.getPosition().trim().toUpperCase();
+        if ("STORE_OWNER".equalsIgnoreCase(existing.getPosition()) && !newPosition.equalsIgnoreCase("STORE_OWNER")) {
+            long activeOwners = employeeRepository.countActiveStoreOwners();
+            if (activeOwners <= 1) {
+                throw new BusinessException("Không thể thay đổi vai trò của Quản trị viên (STORE_OWNER) duy nhất trong hệ thống.");
+            }
         }
 
         existing.setFullName(request.getFullName().trim());
         existing.setPhoneNumber(newPhone);
-        existing.setPosition(request.getPosition().trim().toUpperCase());
+        existing.setPosition(newPosition);
 
         if (request.getStatus() != null) {
             existing.setStatus(request.getStatus());
@@ -177,19 +187,38 @@ public class EmployeeService {
      */
     public EmployeeResponse.DeleteResult deleteEmployee(String id, String currentUserId) {
         if (!isValidId(id)) {
-            throw new IllegalArgumentException("ID không đúng định dạng UUID hoặc tài khoản đang cố tự xóa chính mình.");
+            throw new BadRequestException("Mã nhân viên (ID) không hợp lệ hoặc để trống.");
         }
 
-        if (currentUserId != null && currentUserId.equalsIgnoreCase(id.trim())) {
-            throw new IllegalArgumentException("ID không đúng định dạng UUID hoặc tài khoản đang cố tự xóa chính mình.");
+        // Tìm nhân viên cần xóa (hỗ trợ case-insensitive)
+        Employee existing = employeeRepository.findByIdIgnoreCase(id.trim())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy nhân viên với mã: " + id.trim()));
+
+        // Ràng buộc 1: Không được tự xóa tài khoản của chính mình (kiểm tra cả employeeId và username)
+        if (currentUserId != null && (currentUserId.trim().equalsIgnoreCase(existing.getEmployeeId()) ||
+                currentUserId.trim().equalsIgnoreCase(existing.getUsername()))) {
+            throw new BadRequestException("Bạn không thể tự xóa hoặc vô hiệu hóa tài khoản của chính mình.");
         }
 
-        Employee existing = employeeRepository.findById(id.trim()).orElse(null);
-        if (existing == null) {
-            return null;
+        // Ràng buộc 2: Tài khoản đã bị vô hiệu hóa trước đó
+        if (Boolean.FALSE.equals(existing.getStatus())) {
+            throw new ConflictException("Nhân viên có mã '" + existing.getEmployeeId() + "' đã bị vô hiệu hóa trước đó.");
         }
 
-        employeeRepository.softDelete(id.trim());
+        // Ràng buộc 3: Không thể vô hiệu hóa STORE_OWNER duy nhất đang hoạt động
+        if ("STORE_OWNER".equalsIgnoreCase(existing.getPosition())) {
+            long activeOwners = employeeRepository.countActiveStoreOwners();
+            if (activeOwners <= 1) {
+                throw new BusinessException("Không thể vô hiệu hóa Quản trị viên (STORE_OWNER) duy nhất đang hoạt động trong hệ thống.");
+            }
+        }
+
+        // Thực hiện cập nhật trạng thái xóa mềm
+        boolean success = employeeRepository.softDelete(existing.getEmployeeId());
+        if (!success) {
+            throw new BusinessException("Không thể cập nhật trạng thái vô hiệu hóa nhân viên trong cơ sở dữ liệu.");
+        }
+
         return new EmployeeResponse.DeleteResult(existing.getEmployeeId(), Boolean.FALSE);
     }
 
