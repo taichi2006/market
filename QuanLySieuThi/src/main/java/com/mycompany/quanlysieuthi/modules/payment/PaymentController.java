@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Controller handling payment endpoints:
@@ -86,11 +87,27 @@ public class PaymentController extends BaseController {
         String transactionId = req.getParameter("vnp_TxnRef");
         String responseCode = req.getParameter("vnp_ResponseCode");
 
+        String invoiceId = "";
+        try {
+            Optional<com.mycompany.quanlysieuthi.entity.Payment> pOpt = paymentService.getPaymentRepository().findPaymentByTransactionId(transactionId);
+            if (pOpt.isPresent()) {
+                invoiceId = pOpt.get().getInvoiceId();
+            }
+        } catch (Exception ignored) {}
+
+        String frontendHost = System.getenv("FRONTEND_URL");
+        if (frontendHost == null || frontendHost.trim().isEmpty()) {
+            frontendHost = "http://localhost:5173";
+        }
+        if (frontendHost.endsWith("/")) {
+            frontendHost = frontendHost.substring(0, frontendHost.length() - 1);
+        }
+
+        String redirectUrl = frontendHost + "/cashier";
         if (success) {
-            sendSuccess(resp, "Thanh toán trực tuyến VNPay thành công (TxnRef: " + transactionId + ")", null);
+            resp.sendRedirect(redirectUrl + "?vnpay_status=success&invoice_id=" + (invoiceId != null ? invoiceId : "") + "&txnRef=" + (transactionId != null ? transactionId : ""));
         } else {
-            sendError(resp, HttpServletResponse.SC_BAD_REQUEST,
-                    "Giao dịch thanh toán không thành công hoặc chữ ký không hợp lệ (Mã phản hồi: " + responseCode + ")");
+            resp.sendRedirect(redirectUrl + "?vnpay_status=cancel&invoice_id=" + (invoiceId != null ? invoiceId : "") + "&txnRef=" + (transactionId != null ? transactionId : "") + "&code=" + (responseCode != null ? responseCode : ""));
         }
     }
 

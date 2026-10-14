@@ -3,6 +3,7 @@ package com.mycompany.quanlysieuthi.modules.payment;
 import com.mycompany.quanlysieuthi.entity.Invoice;
 import com.mycompany.quanlysieuthi.entity.Payment;
 import com.mycompany.quanlysieuthi.common.exception.AppException.*;
+import com.mycompany.quanlysieuthi.modules.invoice.InvoiceRepository;
 import com.mycompany.quanlysieuthi.util.VnPayUtil;
 import com.mycompany.quanlysieuthi.util.IdGenerator;
 
@@ -21,13 +22,20 @@ import java.util.*;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final InvoiceRepository invoiceRepository;
 
     public PaymentService() {
         this.paymentRepository = new PaymentRepository();
+        this.invoiceRepository = new InvoiceRepository();
     }
 
     public PaymentService(PaymentRepository paymentRepository) {
         this.paymentRepository = paymentRepository;
+        this.invoiceRepository = new InvoiceRepository();
+    }
+
+    public PaymentRepository getPaymentRepository() {
+        return paymentRepository;
     }
 
     public Object processPayment(PaymentRequest.Process request, String clientIp) {
@@ -44,8 +52,8 @@ public class PaymentService {
         String invoiceId = request.getInvoiceId().trim();
         String method = request.getPaymentMethod().trim().toUpperCase();
 
-        if (!method.equals("CASH") && !method.equals("QR") && !method.equals("BANK_TRANSFER")) {
-            throw new IllegalArgumentException("Phương thức thanh toán không hợp lệ (hỗ trợ CASH, QR, BANK_TRANSFER)");
+        if (!method.equals("CASH") && !method.equals("QR") && !method.equals("BANK_TRANSFER") && !method.equals("VNPAY")) {
+            throw new IllegalArgumentException("Phương thức thanh toán không hợp lệ (hỗ trợ CASH, QR, BANK_TRANSFER, VNPAY)");
         }
 
         Invoice invoice = paymentRepository.findInvoiceById(invoiceId)
@@ -132,6 +140,16 @@ public class PaymentService {
                 return true;
             } else {
                 paymentRepository.updatePaymentAndInvoiceStatus(transactionId, "FAILED", "PENDING");
+                Optional<Payment> pOpt = paymentRepository.findPaymentByTransactionId(transactionId);
+                pOpt.ifPresent(p -> {
+                    if (p.getInvoiceId() != null) {
+                        try {
+                            invoiceRepository.cancelInvoice(p.getInvoiceId());
+                        } catch (Exception e) {
+                            paymentRepository.updatePaymentAndInvoiceStatus(transactionId, "FAILED", "CANCELLED");
+                        }
+                    }
+                });
                 return false;
             }
         }
