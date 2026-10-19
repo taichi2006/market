@@ -131,8 +131,7 @@ public class InvoiceRepository extends BaseRepository<Invoice, String> {
                 sql.append("AND inv.employee_id = :employeeId ");
             }
 
-            sql.append("ORDER BY inv.created_at DESC ");
-            sql.append("LIMIT :limit OFFSET :offset");
+            sql.append("ORDER BY inv.created_at DESC");
 
             Query query = em.createNativeQuery(sql.toString());
 
@@ -152,8 +151,8 @@ public class InvoiceRepository extends BaseRepository<Invoice, String> {
                 query.setParameter("employeeId", employeeId.trim());
             }
 
-            query.setParameter("limit", limitNum);
-            query.setParameter("offset", offset);
+            query.setFirstResult(offset);
+            query.setMaxResults(limitNum);
 
             List<Object[]> rows = query.getResultList();
             List<InvoiceResponse.ListItemDto> list = new ArrayList<>();

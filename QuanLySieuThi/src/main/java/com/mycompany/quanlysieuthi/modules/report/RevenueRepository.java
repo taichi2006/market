@@ -77,23 +77,24 @@ public class RevenueRepository {
     public List<ReportResponse.RevenueTimelineItemDto> getRevenueTimeline(LocalDateTime from, LocalDateTime to, String type) {
         String pattern;
         if ("day".equalsIgnoreCase(type) || "daily".equalsIgnoreCase(type)) {
-            pattern = "YYYY-MM-DD HH24:00";
+            pattern = "yyyy-MM-dd HH:00";
         } else if ("year".equalsIgnoreCase(type) || "yearly".equalsIgnoreCase(type)) {
-            pattern = "YYYY-MM";
+            pattern = "yyyy-MM";
         } else {
-            pattern = "YYYY-MM-DD";
+            pattern = "yyyy-MM-dd";
         }
 
         EntityManager em = JpaUtil.getEntityManager();
         try {
             Map<String, Object[]> timelineMap = new TreeMap<>();
 
-            String invSql = "SELECT TO_CHAR(i.created_at, '" + pattern + "') AS tp, " +
+            String invTimeExpr = "FORMAT(i.created_at, '" + pattern + "')";
+            String invSql = "SELECT " + invTimeExpr + " AS tp, " +
                             "COUNT(i.invoice_id) AS inv_count, " +
                             "COALESCE(SUM(i.original_total - COALESCE(i.discount_amount, 0)), 0) AS rev " +
                             "FROM invoice i WHERE UPPER(i.status) = 'PAID' " +
                             "AND i.created_at >= :from AND i.created_at <= :to " +
-                            "GROUP BY 1 ORDER BY 1 ASC";
+                            "GROUP BY " + invTimeExpr + " ORDER BY " + invTimeExpr + " ASC";
             Query invQ = em.createNativeQuery(invSql);
             invQ.setParameter("from", from);
             invQ.setParameter("to", to);
@@ -106,12 +107,13 @@ public class RevenueRepository {
                 timelineMap.put(tp, new Object[]{cnt, rev, BigDecimal.ZERO, BigDecimal.ZERO});
             }
 
-            String paySql = "SELECT TO_CHAR(p.payment_time, '" + pattern + "') AS tp, " +
+            String payTimeExpr = "FORMAT(p.payment_time, '" + pattern + "')";
+            String paySql = "SELECT " + payTimeExpr + " AS tp, " +
                             "COALESCE(SUM(CASE WHEN UPPER(p.payment_method) = 'CASH' THEN p.amount ELSE 0 END), 0) AS cash, " +
                             "COALESCE(SUM(CASE WHEN UPPER(p.payment_method) IN ('QR', 'BANK_TRANSFER') THEN p.amount ELSE 0 END), 0) AS online " +
                             "FROM payment p WHERE UPPER(p.status) = 'PAID' " +
                             "AND p.payment_time >= :from AND p.payment_time <= :to " +
-                            "GROUP BY 1 ORDER BY 1 ASC";
+                            "GROUP BY " + payTimeExpr + " ORDER BY " + payTimeExpr + " ASC";
             Query payQ = em.createNativeQuery(paySql);
             payQ.setParameter("from", from);
             payQ.setParameter("to", to);

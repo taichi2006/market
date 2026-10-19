@@ -101,7 +101,7 @@ public class PaymentController extends BaseController {
             frontendHost = System.getenv("FRONTEND_URL");
         }
         if (frontendHost == null || frontendHost.trim().isEmpty()) {
-            frontendHost = "http://localhost:5173";
+            frontendHost = "https://market.tai-chi.dev";
         }
         if (frontendHost.endsWith("/")) {
             frontendHost = frontendHost.substring(0, frontendHost.length() - 1);
