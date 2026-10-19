@@ -45,4 +45,8 @@ public class ReportRequest implements Serializable {
         }
         public String getDiscrepancyReason() { return discrepancyReason; }
     }
+
+    public record CreateAuditSession(String categoryId, String auditTitle, String note) implements Serializable {}
+
+    public record FinalizeAudit(String note) implements Serializable {}
 }

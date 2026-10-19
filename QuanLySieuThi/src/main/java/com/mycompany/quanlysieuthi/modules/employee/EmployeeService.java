@@ -159,12 +159,6 @@ public class EmployeeService {
         }
 
         String newPosition = request.getPosition().trim().toUpperCase();
-        if ("STORE_OWNER".equalsIgnoreCase(existing.getPosition()) && !newPosition.equalsIgnoreCase("STORE_OWNER")) {
-            long activeOwners = employeeRepository.countActiveStoreOwners();
-            if (activeOwners <= 1) {
-                throw new BusinessException("Không thể thay đổi vai trò của Quản trị viên (STORE_OWNER) duy nhất trong hệ thống.");
-            }
-        }
 
         existing.setFullName(request.getFullName().trim());
         existing.setPhoneNumber(newPhone);
@@ -178,7 +172,20 @@ public class EmployeeService {
             existing.setPassword(PasswordUtil.hash(request.getPassword().trim()));
         }
 
-        Employee saved = employeeRepository.update(existing);
+        Employee saved;
+        try {
+            saved = employeeRepository.update(existing);
+        } catch (Exception e) {
+            Throwable root = e;
+            while (root.getCause() != null) {
+                root = root.getCause();
+            }
+            String msg = root.getMessage();
+            if (msg != null && msg.contains("Không thể xóa hoặc vô hiệu hóa Quản trị viên")) {
+                throw new BusinessException("Không thể thay đổi vai trò hoặc vô hiệu hóa Quản trị viên (STORE_OWNER) duy nhất trong hệ thống.");
+            }
+            throw e;
+        }
         return toResponse(saved);
     }
 
@@ -194,32 +201,41 @@ public class EmployeeService {
         Employee existing = employeeRepository.findByIdIgnoreCase(id.trim())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy nhân viên với mã: " + id.trim()));
 
-        // Ràng buộc 1: Không được tự xóa tài khoản của chính mình (kiểm tra cả employeeId và username)
+        // Ràng buộc: Không được tự xóa tài khoản của chính mình (kiểm tra cả employeeId và username)
         if (currentUserId != null && (currentUserId.trim().equalsIgnoreCase(existing.getEmployeeId()) ||
                 currentUserId.trim().equalsIgnoreCase(existing.getUsername()))) {
             throw new BadRequestException("Bạn không thể tự xóa hoặc vô hiệu hóa tài khoản của chính mình.");
         }
 
-        // Ràng buộc 2: Tài khoản đã bị vô hiệu hóa trước đó
+        // Tài khoản đã bị vô hiệu hóa trước đó
         if (Boolean.FALSE.equals(existing.getStatus())) {
             throw new ConflictException("Nhân viên có mã '" + existing.getEmployeeId() + "' đã bị vô hiệu hóa trước đó.");
         }
 
-        // Ràng buộc 3: Không thể vô hiệu hóa STORE_OWNER duy nhất đang hoạt động
-        if ("STORE_OWNER".equalsIgnoreCase(existing.getPosition())) {
-            long activeOwners = employeeRepository.countActiveStoreOwners();
-            if (activeOwners <= 1) {
-                throw new BusinessException("Không thể vô hiệu hóa Quản trị viên (STORE_OWNER) duy nhất đang hoạt động trong hệ thống.");
-            }
-        }
-
-        // Thực hiện cập nhật trạng thái xóa mềm
+        // Nghiệp vụ bảo vệ Quản trị viên (STORE_OWNER) duy nhất trong hệ thống
+        // đã được chuyển giao hoàn toàn cho Trigger dbo.trg_BaoVeStoreOwnerDuyNhat trong cơ sở dữ liệu.
+        // Trigger sẽ tự động kiểm tra và ROLLBACK nếu là STORE_OWNER active cuối cùng.
         boolean success = employeeRepository.softDelete(existing.getEmployeeId());
         if (!success) {
             throw new BusinessException("Không thể cập nhật trạng thái vô hiệu hóa nhân viên trong cơ sở dữ liệu.");
         }
 
         return new EmployeeResponse.DeleteResult(existing.getEmployeeId(), Boolean.FALSE);
+    }
+
+    /**
+     * Lấy báo cáo hiệu suất thu ngân theo ca/ngày từ View dbo.v_hieu_suat_thu_ngan_theo_ngay.
+     */
+    public List<EmployeeResponse.CashierPerformanceDto> getCashierPerformance(String dateStr) {
+        java.time.LocalDate date = null;
+        if (dateStr != null && !dateStr.trim().isEmpty()) {
+            try {
+                date = java.time.LocalDate.parse(dateStr.trim());
+            } catch (java.time.format.DateTimeParseException e) {
+                throw new BadRequestException("Định dạng ngày không hợp lệ (yêu cầu YYYY-MM-DD)");
+            }
+        }
+        return employeeRepository.findCashierShiftPerformance(date);
     }
 
     private EmployeeResponse toResponse(Employee saved) {

@@ -42,6 +42,11 @@ public class AuthService {
             throw new SecurityException("Tài khoản đã bị vô hiệu hóa");
         }
 
+        // Kiểm tra chức vụ/vai trò theo ràng buộc chk_employee_position và Database Roles (role_owner, role_cashier, role_inventory)
+        if (employee.getPosition() == null || authRepository.getDatabaseRoleForPosition(employee.getPosition()) == null) {
+            throw new SecurityException("Tài khoản có chức vụ không hợp lệ trong hệ thống");
+        }
+
         // Generate Access Token (JWT)
         String accessToken = JwtUtil.generateAccessToken(
                 employee.getEmployeeId(),
@@ -96,6 +101,10 @@ public class AuthService {
                 .orElseThrow(() -> new SecurityException("refreshtoken hết hạn/ không hợp lệ"));
 
         if (Boolean.FALSE.equals(employee.getStatus())) {
+            throw new SecurityException("refreshtoken hết hạn/ không hợp lệ");
+        }
+
+        if (employee.getPosition() == null || authRepository.getDatabaseRoleForPosition(employee.getPosition()) == null) {
             throw new SecurityException("refreshtoken hết hạn/ không hợp lệ");
         }
 

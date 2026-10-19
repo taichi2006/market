@@ -87,25 +87,37 @@ public class InvoiceService {
         }
 
         // Loyalty discount calculation: 1 điểm = 1 VNĐ, tối đa 100,000 điểm/hóa đơn
+        // Logic được tích hợp thông qua Scalar Function fn_CalculateLoyaltyDiscount
         BigDecimal discountAmount = BigDecimal.ZERO;
         if (customer != null && Boolean.TRUE.equals(request.getUseLoyaltyPoints())) {
-            int currentPoints = customer.getLoyaltyPoints() != null ? customer.getLoyaltyPoints() : 0;
-            if (currentPoints > 0) {
-                int maxAllowed = 100000;
-                int pointsToUse = Math.min(currentPoints, maxAllowed);
-                pointsToUse = Math.min(pointsToUse, originalTotal.intValue());
-                if (pointsToUse > 0) {
-                    discountAmount = BigDecimal.valueOf(pointsToUse);
-                    customer.setLoyaltyPoints(currentPoints - pointsToUse);
+            BigDecimal udfDiscount = invoiceRepository.calculateLoyaltyDiscount(customer.getCustomerId(), originalTotal);
+            if (udfDiscount != null && udfDiscount.compareTo(BigDecimal.ZERO) > 0) {
+                discountAmount = udfDiscount;
+            } else {
+                int currentPoints = customer.getLoyaltyPoints() != null ? customer.getLoyaltyPoints() : 0;
+                if (currentPoints > 0) {
+                    int maxAllowed = 100000;
+                    int pointsToUse = Math.min(currentPoints, maxAllowed);
+                    pointsToUse = Math.min(pointsToUse, originalTotal.intValue());
+                    if (pointsToUse > 0) {
+                        discountAmount = BigDecimal.valueOf(pointsToUse);
+                    }
                 }
+            }
+            if (discountAmount.compareTo(BigDecimal.ZERO) > 0) {
+                int currentPoints = customer.getLoyaltyPoints() != null ? customer.getLoyaltyPoints() : 0;
+                customer.setLoyaltyPoints(Math.max(0, currentPoints - discountAmount.intValue()));
             }
         }
 
         BigDecimal finalTotal = originalTotal.subtract(discountAmount);
 
-        // Accumulate loyalty points if member and didn't use points for discount
+        // Tích lũy điểm thưởng theo Scalar Function fn_CalculateLoyaltyPointsEarned: mỗi 10,000 VNĐ được 100 điểm
         if (customer != null && discountAmount.compareTo(BigDecimal.ZERO) == 0) {
-            int earnedPoints = (int) Math.floor(originalTotal.doubleValue() / 10000.0) * 100;
+            int earnedPoints = invoiceRepository.calculateLoyaltyPointsEarned(originalTotal);
+            if (earnedPoints <= 0) {
+                earnedPoints = (int) Math.floor(originalTotal.doubleValue() / 10000.0) * 100;
+            }
             int current = customer.getLoyaltyPoints() != null ? customer.getLoyaltyPoints() : 0;
             customer.setLoyaltyPoints(current + earnedPoints);
         }

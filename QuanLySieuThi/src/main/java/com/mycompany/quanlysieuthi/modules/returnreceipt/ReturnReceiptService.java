@@ -52,9 +52,11 @@ public class ReturnReceiptService {
             throw new IllegalArgumentException("Chỉ được phép trả hàng cho hóa đơn đã hoàn tất thanh toán (PAID). Trạng thái hiện tại: " + invoice.getStatus());
         }
 
-        if (returnReceiptRepository.existsReturnReceiptByInvoiceId(invoiceId)) {
-            throw new ConflictException("Hóa đơn này đã được lập phiếu trả hàng trước đó");
-        }
+        // Lưu ý nghiệp vụ: Logic kiểm tra hóa đơn chỉ được đổi trả 1 lần duy nhất (trùng lặp)
+        // và kiểm tra tổng tiền hoàn trả không vượt quá giá trị hóa đơn gốc
+        // đã được chuyển hoàn toàn xuống CSDL qua Stored Procedure dbo.sp_LapPhieuTraHang,
+        // Function dbo.fn_TongTienHoanTraTheoHoaDon, và ràng buộc UNIQUE uq_return_receipt_invoice.
+        // Khi trùng lặp, CSDL sẽ kích hoạt lỗi ràng buộc và repository ném ConflictException.
 
         List<Object[]> rawInvoiceItems = returnReceiptRepository.findInvoiceItems(invoiceId);
         if (rawInvoiceItems.isEmpty()) {

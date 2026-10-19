@@ -27,10 +27,9 @@ public class ProductRepository extends BaseRepository<Product, String> {
         try {
             StringBuilder jpql = new StringBuilder(
                     "SELECT p, c.categoryName " +
-                    "FROM Product p " +
-                    "LEFT JOIN ProductCategory c ON p.categoryId = c.categoryId " +
-                    "WHERE 1=1 "
-            );
+                            "FROM Product p " +
+                            "LEFT JOIN ProductCategory c ON p.categoryId = c.categoryId " +
+                            "WHERE 1=1 ");
 
             if (productStatus != null && !productStatus.trim().isEmpty()) {
                 String normalizedStatus = productStatus.trim().toUpperCase();
@@ -44,7 +43,8 @@ public class ProductRepository extends BaseRepository<Product, String> {
                 jpql.append("AND p.categoryId = :categoryId ");
             }
             if (keyword != null && !keyword.trim().isEmpty()) {
-                jpql.append("AND (LOWER(TRIM(p.productName)) LIKE LOWER(:keyword) OR LOWER(TRIM(p.productId)) LIKE LOWER(:keyword)) ");
+                jpql.append(
+                        "AND (LOWER(TRIM(p.productName)) LIKE LOWER(:keyword) OR LOWER(TRIM(p.productId)) LIKE LOWER(:keyword)) ");
             }
 
             jpql.append("ORDER BY p.productName ASC");
@@ -81,9 +81,9 @@ public class ProductRepository extends BaseRepository<Product, String> {
         EntityManager em = getEntityManager();
         try {
             String jpql = "SELECT p, c.categoryName " +
-                          "FROM Product p " +
-                          "LEFT JOIN ProductCategory c ON p.categoryId = c.categoryId " +
-                          "WHERE p.productId = :productId";
+                    "FROM Product p " +
+                    "LEFT JOIN ProductCategory c ON p.categoryId = c.categoryId " +
+                    "WHERE p.productId = :productId";
 
             List<Object[]> results = em.createQuery(jpql, Object[].class)
                     .setParameter("productId", productId.trim())
@@ -117,11 +117,10 @@ public class ProductRepository extends BaseRepository<Product, String> {
         try {
             StringBuilder jpql = new StringBuilder(
                     "SELECT p, c.categoryName " +
-                    "FROM Product p " +
-                    "LEFT JOIN ProductCategory c ON p.categoryId = c.categoryId " +
-                    "WHERE p.stockQuantity <= :threshold " +
-                    "  AND p.productStatus = 'ON_SALE' "
-            );
+                            "FROM Product p " +
+                            "LEFT JOIN ProductCategory c ON p.categoryId = c.categoryId " +
+                            "WHERE p.stockQuantity <= :threshold " +
+                            "  AND p.productStatus = 'ON_SALE' ");
 
             if (categoryId != null && !categoryId.trim().isEmpty()) {
                 jpql.append("AND p.categoryId = :categoryId ");
@@ -153,10 +152,9 @@ public class ProductRepository extends BaseRepository<Product, String> {
         try {
             StringBuilder jpql = new StringBuilder(
                     "SELECT COUNT(p) " +
-                    "FROM Product p " +
-                    "WHERE p.stockQuantity <= :threshold " +
-                    "  AND p.productStatus = 'ON_SALE' "
-            );
+                            "FROM Product p " +
+                            "WHERE p.stockQuantity <= :threshold " +
+                            "  AND p.productStatus = 'ON_SALE' ");
 
             if (categoryId != null && !categoryId.trim().isEmpty()) {
                 jpql.append("AND p.categoryId = :categoryId ");
@@ -171,6 +169,167 @@ public class ProductRepository extends BaseRepository<Product, String> {
 
             Long count = query.getSingleResult();
             return count != null ? count : 0L;
+        } finally {
+            if (em.isOpen()) {
+                em.close();
+            }
+        }
+    }
+
+    /**
+     * Đánh giá mức độ rủi ro kho của một mặt hàng cụ thể thông qua Scalar Function
+     * dbo.fn_EvaluateProductStockRisk.
+     * Trả về các nhãn rủi ro: 'HẾT HÀNG TRONG KHO', 'ĐÃ HẾT HẠN SỬ DỤNG - CẦN HỦY',
+     * 'CẬN HẠN KHẨN CẤP (<= 15 NGÀY)', 'TỒN KHO THẤP CẦN NHẬP BỔ SUNG', 'AN TOÀN
+     * BÌNH THƯỜNG'.
+     */
+    public String evaluateProductStockRisk(String productId) {
+        if (productId == null || productId.trim().isEmpty()) {
+            return "Mã sản phẩm không hợp lệ";
+        }
+        EntityManager em = getEntityManager();
+        try {
+            jakarta.persistence.Query query = em
+                    .createNativeQuery("SELECT dbo.fn_EvaluateProductStockRisk(:productId)");
+            query.setParameter("productId", productId.trim());
+            Object result = query.getSingleResult();
+            return result != null ? result.toString() : "";
+        } finally {
+            if (em.isOpen()) {
+                em.close();
+            }
+        }
+    }
+
+    /**
+     * Lấy danh sách sản phẩm sắp hết hạn trong vòng daysThreshold ngày qua
+     * Table-Valued Function dbo.fn_GetExpiringProductsByDays.
+     */
+    public List<ProductResponse.ExpiringProductDto> findExpiringProducts(int daysThreshold) {
+        EntityManager em = getEntityManager();
+        try {
+            String sql = "SELECT product_id, product_name, category_name, stock_quantity, unit_price, " +
+                    "expiration_date, days_until_expiration, potential_loss_value, risk_status " +
+                    "FROM dbo.fn_GetExpiringProductsByDays(:threshold) " +
+                    "ORDER BY days_until_expiration ASC, potential_loss_value DESC";
+
+            jakarta.persistence.Query query = em.createNativeQuery(sql);
+            query.setParameter("threshold", daysThreshold);
+
+            List<?> rows = query.getResultList();
+            List<ProductResponse.ExpiringProductDto> list = new java.util.ArrayList<>();
+            java.time.format.DateTimeFormatter isoFormatter = java.time.format.DateTimeFormatter
+                    .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+
+            for (Object obj : rows) {
+                Object[] r = (Object[]) obj;
+                String pId = (String) r[0];
+                String pName = (String) r[1];
+                String cName = (String) r[2];
+                Integer stock = r[3] != null ? ((Number) r[3]).intValue() : 0;
+                java.math.BigDecimal price = r[4] != null ? new java.math.BigDecimal(r[4].toString())
+                        : java.math.BigDecimal.ZERO;
+
+                String expDateStr = null;
+                if (r[5] instanceof java.time.LocalDateTime) {
+                    expDateStr = ((java.time.LocalDateTime) r[5]).atOffset(java.time.ZoneOffset.UTC)
+                            .format(isoFormatter);
+                } else if (r[5] != null) {
+                    expDateStr = r[5].toString();
+                }
+
+                Integer days = r[6] != null ? ((Number) r[6]).intValue() : 0;
+                java.math.BigDecimal lossVal = r[7] != null ? new java.math.BigDecimal(r[7].toString())
+                        : java.math.BigDecimal.ZERO;
+                String risk = (String) r[8];
+
+                list.add(new ProductResponse.ExpiringProductDto(
+                        pId, pName, cName != null ? cName : "", stock, price, expDateStr, days, lossVal, risk));
+            }
+            return list;
+        } finally {
+            if (em.isOpen()) {
+                em.close();
+            }
+        }
+    }
+
+    /**
+     * Điều chỉnh số lượng tồn kho (tăng/giảm) an toàn thông qua Stored Procedure
+     * sp_AdjustProductStockWithAudit.
+     * Sử dụng UPDLOCK, ROWLOCK và kiểm tra không để âm kho tại mức CSDL.
+     */
+    public int adjustProductStockWithAudit(String productId, int quantityChange, String reason) {
+        if (productId == null || productId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã sản phẩm không được để trống.");
+        }
+        EntityManager em = getEntityManager();
+        jakarta.persistence.EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            jakarta.persistence.StoredProcedureQuery sp = em
+                    .createStoredProcedureQuery("dbo.sp_AdjustProductStockWithAudit");
+            sp.registerStoredProcedureParameter("ProductId", String.class, jakarta.persistence.ParameterMode.IN);
+            sp.registerStoredProcedureParameter("QuantityChange", Integer.class, jakarta.persistence.ParameterMode.IN);
+            sp.registerStoredProcedureParameter("Reason", String.class, jakarta.persistence.ParameterMode.IN);
+            sp.registerStoredProcedureParameter("UpdatedStock", Integer.class, jakarta.persistence.ParameterMode.OUT);
+
+            sp.setParameter("ProductId", productId.trim());
+            sp.setParameter("QuantityChange", quantityChange);
+            sp.setParameter("Reason", reason != null ? reason.trim() : "Điều chỉnh kiểm kê kho");
+
+            sp.execute();
+            Integer updatedStock = (Integer) sp.getOutputParameterValue("UpdatedStock");
+            tx.commit();
+            return updatedStock != null ? updatedStock : 0;
+        } catch (Exception e) {
+            if (tx.isActive()) {
+                tx.rollback();
+            }
+            Throwable root = e;
+            while (root.getCause() != null) {
+                root = root.getCause();
+            }
+            throw new RuntimeException("Lỗi điều chỉnh tồn kho: " + root.getMessage(), e);
+        } finally {
+            if (em.isOpen()) {
+                em.close();
+            }
+        }
+    }
+
+    /**
+     * Trừ tồn kho chống tranh chấp đồng thời (Pessimistic Locking WITH (UPDLOCK,
+     * ROWLOCK, HOLDLOCK))
+     * thông qua Stored Procedure dbo.sp_SafeDeductProductStock.
+     */
+    public void safeDeductProductStock(String productId, int deductQuantity) {
+        if (productId == null || productId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã sản phẩm không được để trống.");
+        }
+        EntityManager em = getEntityManager();
+        jakarta.persistence.EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            jakarta.persistence.StoredProcedureQuery sp = em
+                    .createStoredProcedureQuery("dbo.sp_SafeDeductProductStock");
+            sp.registerStoredProcedureParameter("ProductId", String.class, jakarta.persistence.ParameterMode.IN);
+            sp.registerStoredProcedureParameter("DeductQuantity", Integer.class, jakarta.persistence.ParameterMode.IN);
+
+            sp.setParameter("ProductId", productId.trim());
+            sp.setParameter("DeductQuantity", deductQuantity);
+
+            sp.execute();
+            tx.commit();
+        } catch (Exception e) {
+            if (tx.isActive()) {
+                tx.rollback();
+            }
+            Throwable root = e;
+            while (root.getCause() != null) {
+                root = root.getCause();
+            }
+            throw new RuntimeException("Lỗi trừ tồn kho an toàn: " + root.getMessage(), e);
         } finally {
             if (em.isOpen()) {
                 em.close();

@@ -2,7 +2,10 @@ package com.mycompany.quanlysieuthi.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.io.Serializable;
@@ -26,8 +29,16 @@ public class PurchaseReceiptDetail implements Serializable {
     @Column(name = "voucher_id", length = 36, nullable = false)
     private String voucherId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "voucher_id", referencedColumnName = "voucher_id", insertable = false, updatable = false)
+    private PurchaseReceipt purchaseReceipt;
+
     @Column(name = "product_id", length = 36, nullable = false)
     private String productId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", referencedColumnName = "product_id", insertable = false, updatable = false)
+    private Product product;
 
     @Column(name = "purchased_quantity", nullable = false)
     private Integer purchasedQuantity;
@@ -67,6 +78,17 @@ public class PurchaseReceiptDetail implements Serializable {
         this.voucherId = voucherId;
     }
 
+    public PurchaseReceipt getPurchaseReceipt() {
+        return purchaseReceipt;
+    }
+
+    public void setPurchaseReceipt(PurchaseReceipt purchaseReceipt) {
+        this.purchaseReceipt = purchaseReceipt;
+        if (purchaseReceipt != null) {
+            this.voucherId = purchaseReceipt.getVoucherId();
+        }
+    }
+
     public String getProductId() {
         return productId;
     }
@@ -74,6 +96,18 @@ public class PurchaseReceiptDetail implements Serializable {
     public void setProductId(String productId) {
         this.productId = productId;
     }
+
+    public Product getProduct() {
+        return product;
+    }
+
+    public void setProduct(Product product) {
+        this.product = product;
+        if (product != null) {
+            this.productId = product.getProductId();
+        }
+    }
+
 
     public Integer getPurchasedQuantity() {
         return purchasedQuantity;

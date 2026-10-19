@@ -29,6 +29,8 @@ public class ReportController extends BaseController {
 
         if (pathInfo.equals("/stock-discrepancy") || pathInfo.equals("/stock-discrepancy/")) {
             handleGetStockDiscrepancyList(req, resp);
+        } else if (pathInfo.equals("/category-inventory") || pathInfo.equals("/category-inventory/")) {
+            handle(resp, () -> reportService.getCategoryInventoryReport(), "Lấy báo cáo tổng quan kho theo danh mục thành công");
         } else if (pathInfo.startsWith("/stock-discrepancy/")) {
             String id = pathInfo.substring("/stock-discrepancy/".length()).trim();
             if (id.isEmpty()) {
@@ -51,6 +53,25 @@ public class ReportController extends BaseController {
 
         if (pathInfo != null && (pathInfo.equals("/stock-discrepancy") || pathInfo.equals("/stock-discrepancy/"))) {
             handleCreateStockAudit(req, resp);
+        } else if (pathInfo != null && pathInfo.equals("/stock-discrepancy/category-session")) {
+            handle(resp, HttpServletResponse.SC_CREATED, () -> {
+                ReportRequest.CreateAuditSession body = parseBody(req, ReportRequest.CreateAuditSession.class);
+                String empId = getCurrentEmployeeId(req);
+                String fullName = getCurrentFullName(req);
+                return reportService.createAuditSessionByCategory(
+                        body != null ? body.categoryId() : null,
+                        empId != null ? empId : "",
+                        fullName != null ? fullName : "",
+                        body != null ? body.auditTitle() : null,
+                        body != null ? body.note() : null
+                );
+            }, "Khởi tạo đợt kiểm kê theo danh mục thành công", null);
+        } else if (pathInfo != null && pathInfo.contains("/finalize")) {
+            String reportId = pathInfo.replace("/stock-discrepancy/", "").replace("/finalize", "").replace("/", "").trim();
+            handle(resp, () -> {
+                String empId = getCurrentEmployeeId(req);
+                return reportService.finalizeAuditReport(reportId, empId != null ? empId : "");
+            }, "Chốt đợt kiểm kê và tự động xuất hủy hàng hao hụt thành công");
         } else {
             sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found: " + pathInfo);
         }

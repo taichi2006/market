@@ -2,7 +2,10 @@ package com.mycompany.quanlysieuthi.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.io.Serializable;
@@ -25,8 +28,16 @@ public class InvoiceDetail implements Serializable {
     @Column(name = "invoice_id", length = 36, nullable = false)
     private String invoiceId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "invoice_id", referencedColumnName = "invoice_id", insertable = false, updatable = false)
+    private Invoice invoice;
+
     @Column(name = "product_id", length = 36, nullable = false)
     private String productId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", referencedColumnName = "product_id", insertable = false, updatable = false)
+    private Product product;
 
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
@@ -66,6 +77,17 @@ public class InvoiceDetail implements Serializable {
         this.invoiceId = invoiceId;
     }
 
+    public Invoice getInvoice() {
+        return invoice;
+    }
+
+    public void setInvoice(Invoice invoice) {
+        this.invoice = invoice;
+        if (invoice != null) {
+            this.invoiceId = invoice.getInvoiceId();
+        }
+    }
+
     public String getProductId() {
         return productId;
     }
@@ -73,6 +95,18 @@ public class InvoiceDetail implements Serializable {
     public void setProductId(String productId) {
         this.productId = productId;
     }
+
+    public Product getProduct() {
+        return product;
+    }
+
+    public void setProduct(Product product) {
+        this.product = product;
+        if (product != null) {
+            this.productId = product.getProductId();
+        }
+    }
+
 
     public Integer getQuantity() {
         return quantity;

@@ -2,7 +2,10 @@ package com.mycompany.quanlysieuthi.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.io.Serializable;
@@ -26,8 +29,16 @@ public class ReturnReceipt implements Serializable {
     @Column(name = "original_invoice_id", length = 36, nullable = false)
     private String invoiceId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "original_invoice_id", referencedColumnName = "invoice_id", insertable = false, updatable = false)
+    private Invoice originalInvoice;
+
     @Column(name = "employee_id", length = 36, nullable = false)
     private String employeeId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", referencedColumnName = "employee_id", insertable = false, updatable = false)
+    private Employee employee;
 
     @Column(name = "refund_amount", precision = 12, scale = 2, nullable = false)
     private BigDecimal refundAmount;
@@ -67,6 +78,17 @@ public class ReturnReceipt implements Serializable {
         this.invoiceId = invoiceId;
     }
 
+    public Invoice getOriginalInvoice() {
+        return originalInvoice;
+    }
+
+    public void setOriginalInvoice(Invoice originalInvoice) {
+        this.originalInvoice = originalInvoice;
+        if (originalInvoice != null) {
+            this.invoiceId = originalInvoice.getInvoiceId();
+        }
+    }
+
     public String getEmployeeId() {
         return employeeId;
     }
@@ -74,6 +96,18 @@ public class ReturnReceipt implements Serializable {
     public void setEmployeeId(String employeeId) {
         this.employeeId = employeeId;
     }
+
+    public Employee getEmployee() {
+        return employee;
+    }
+
+    public void setEmployee(Employee employee) {
+        this.employee = employee;
+        if (employee != null) {
+            this.employeeId = employee.getEmployeeId();
+        }
+    }
+
 
     public BigDecimal getRefundAmount() {
         return refundAmount;

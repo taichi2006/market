@@ -108,12 +108,15 @@ class ReturnReceiptServiceTest {
         @DisplayName("Ném ngoại lệ ConflictException khi hóa đơn đã được lập phiếu trả hàng trước đó")
         void testCreateReturnReceipt_AlreadyReturned_ThrowsConflictException() {
             Invoice invoice = new Invoice("INV001", "CUST01", "EMP01", "PAID", new BigDecimal("100000"), BigDecimal.ZERO, LocalDateTime.now());
+            Object[] rawItem = new Object[]{"PROD01", 1, new BigDecimal("50000")};
 
             ReturnReceiptRequest.Create request = new ReturnReceiptRequest.Create("INV001", "Hàng lỗi",
                     List.of(new ReturnReceiptRequest.Item("PROD01", 1)));
 
             when(returnReceiptRepository.findInvoiceById("INV001")).thenReturn(Optional.of(invoice));
-            when(returnReceiptRepository.existsReturnReceiptByInvoiceId("INV001")).thenReturn(true);
+            when(returnReceiptRepository.findInvoiceItems("INV001")).thenReturn(Collections.singletonList(rawItem));
+            doThrow(new ConflictException("Hóa đơn này đã được lập phiếu trả hàng trước đó"))
+                    .when(returnReceiptRepository).saveReturnReceiptTransaction(any(), anyMap(), any(), anyInt());
 
             ConflictException ex = assertThrows(ConflictException.class, () ->
                     returnReceiptService.createReturnReceipt(request, "EMP001", "Nguyễn Văn A")
@@ -130,7 +133,6 @@ class ReturnReceiptServiceTest {
                     List.of(new ReturnReceiptRequest.Item("PROD01", 1)));
 
             when(returnReceiptRepository.findInvoiceById("INV001")).thenReturn(Optional.of(invoice));
-            when(returnReceiptRepository.existsReturnReceiptByInvoiceId("INV001")).thenReturn(false);
             when(returnReceiptRepository.findInvoiceItems("INV001")).thenReturn(Collections.emptyList());
 
             NotFoundException ex = assertThrows(NotFoundException.class, () ->
@@ -149,7 +151,6 @@ class ReturnReceiptServiceTest {
                     List.of(new ReturnReceiptRequest.Item("   ", 1)));
 
             when(returnReceiptRepository.findInvoiceById("INV001")).thenReturn(Optional.of(invoice));
-            when(returnReceiptRepository.existsReturnReceiptByInvoiceId("INV001")).thenReturn(false);
             when(returnReceiptRepository.findInvoiceItems("INV001")).thenReturn(Collections.singletonList(rawItem));
 
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
@@ -168,7 +169,6 @@ class ReturnReceiptServiceTest {
                     List.of(new ReturnReceiptRequest.Item("PROD01", 0)));
 
             when(returnReceiptRepository.findInvoiceById("INV001")).thenReturn(Optional.of(invoice));
-            when(returnReceiptRepository.existsReturnReceiptByInvoiceId("INV001")).thenReturn(false);
             when(returnReceiptRepository.findInvoiceItems("INV001")).thenReturn(Collections.singletonList(rawItem));
 
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
@@ -187,7 +187,6 @@ class ReturnReceiptServiceTest {
                     List.of(new ReturnReceiptRequest.Item("PROD02", 1)));
 
             when(returnReceiptRepository.findInvoiceById("INV001")).thenReturn(Optional.of(invoice));
-            when(returnReceiptRepository.existsReturnReceiptByInvoiceId("INV001")).thenReturn(false);
             when(returnReceiptRepository.findInvoiceItems("INV001")).thenReturn(Collections.singletonList(rawItem));
 
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
@@ -206,7 +205,6 @@ class ReturnReceiptServiceTest {
                     List.of(new ReturnReceiptRequest.Item("PROD01", 5))); // mua 2 đòi trả 5
 
             when(returnReceiptRepository.findInvoiceById("INV001")).thenReturn(Optional.of(invoice));
-            when(returnReceiptRepository.existsReturnReceiptByInvoiceId("INV001")).thenReturn(false);
             when(returnReceiptRepository.findInvoiceItems("INV001")).thenReturn(Collections.singletonList(rawItem));
 
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
@@ -226,7 +224,6 @@ class ReturnReceiptServiceTest {
                     List.of(new ReturnReceiptRequest.Item("PROD01", 1))); // trả 1 sp PROD01 -> hoàn 30,000
 
             when(returnReceiptRepository.findInvoiceById("INV001")).thenReturn(Optional.of(invoice));
-            when(returnReceiptRepository.existsReturnReceiptByInvoiceId("INV001")).thenReturn(false);
             when(returnReceiptRepository.findInvoiceItems("INV001")).thenReturn(List.<Object[]>of(rawItem1, rawItem2));
 
             ReturnReceiptResponse response = returnReceiptService.createReturnReceipt(request, "EMP001", "Nguyễn Văn A");
@@ -259,7 +256,6 @@ class ReturnReceiptServiceTest {
                     List.of(new ReturnReceiptRequest.Item("PROD01", 2)));
 
             when(returnReceiptRepository.findInvoiceById("INV001")).thenReturn(Optional.of(invoice));
-            when(returnReceiptRepository.existsReturnReceiptByInvoiceId("INV001")).thenReturn(false);
             when(returnReceiptRepository.findInvoiceItems("INV001")).thenReturn(Collections.singletonList(rawItem));
             when(returnReceiptRepository.findCustomerById("CUST01")).thenReturn(Optional.of(customer));
 
@@ -287,7 +283,6 @@ class ReturnReceiptServiceTest {
                     List.of(new ReturnReceiptRequest.Item("PROD01", 1)));
 
             when(returnReceiptRepository.findInvoiceById("INV001")).thenReturn(Optional.of(invoice));
-            when(returnReceiptRepository.existsReturnReceiptByInvoiceId("INV001")).thenReturn(false);
             when(returnReceiptRepository.findInvoiceItems("INV001")).thenReturn(Collections.singletonList(rawItem));
             when(returnReceiptRepository.findCustomerById("CUST01")).thenReturn(Optional.of(customer));
 

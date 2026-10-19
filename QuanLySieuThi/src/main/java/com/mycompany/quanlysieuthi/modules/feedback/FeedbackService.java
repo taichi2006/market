@@ -40,9 +40,8 @@ public class FeedbackService {
             throw new IllegalArgumentException("Thiếu số sao đánh giá (rating).");
         }
 
-        if (request.getRating() < 1 || request.getRating() > 5) {
-            throw new IllegalArgumentException("rating không nằm trong khoảng từ 1 đến 5.");
-        }
+        // Logic kiểm tra rating từ 1 đến 5 đã được chuyển giao hoàn toàn cho ràng buộc CSDL chk_feedback_rating.
+        // Loại bỏ logic kiểm tra thủ công bằng Java.
 
         String phoneNumber = null;
         if (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty()) {

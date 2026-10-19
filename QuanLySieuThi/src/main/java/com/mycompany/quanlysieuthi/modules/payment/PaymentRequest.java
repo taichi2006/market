@@ -13,4 +13,10 @@ public class PaymentRequest implements Serializable {
         public String getInvoiceId() { return invoiceId; }
         public String getPaymentMethod() { return paymentMethod; }
     }
+
+    public record CashDirect(String invoiceId, java.math.BigDecimal amount) implements Serializable {
+        public String getInvoiceId() { return invoiceId; }
+        public java.math.BigDecimal getAmount() { return amount; }
+    }
 }
+

@@ -50,7 +50,6 @@ public class DisposalReceiptService {
         LocalDateTime now = LocalDateTime.now();
 
         List<DisposalReceiptDetail> details = new ArrayList<>();
-        Map<String, Integer> productDeductionMap = new HashMap<>();
 
         for (DisposalReceiptRequest.Item item : request.getItems()) {
             if (item.getProductId() == null || item.getProductId().trim().isEmpty()) {
@@ -83,9 +82,6 @@ public class DisposalReceiptService {
                     product.getProductId(),
                     disposedQty,
                     item.getDisposalReason().trim()));
-
-            productDeductionMap.put(product.getProductId(),
-                    productDeductionMap.getOrDefault(product.getProductId(), 0) + disposedQty);
         }
 
         Voucher voucher = new Voucher(
@@ -96,7 +92,7 @@ public class DisposalReceiptService {
 
         DisposalReceipt disposalReceipt = new DisposalReceipt(voucherId);
 
-        disposalReceiptRepository.saveDisposalReceiptTransaction(voucher, disposalReceipt, details, productDeductionMap);
+        disposalReceiptRepository.saveDisposalReceiptTransaction(voucher, disposalReceipt, details, null);
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
         String formattedDate = now.atOffset(ZoneOffset.UTC).format(formatter);

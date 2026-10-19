@@ -13,6 +13,11 @@ public class CategoryResponse implements Serializable {
     private String categoryName;
     private Long productCount;
 
+    private Integer totalStockQuantity;
+    private java.math.BigDecimal totalInventoryValue;
+    private Integer lowStockProductCount;
+    private Integer expiringSoonProductCount;
+
     public CategoryResponse() {
     }
 
@@ -44,5 +49,37 @@ public class CategoryResponse implements Serializable {
 
     public void setProductCount(Long productCount) {
         this.productCount = productCount;
+    }
+
+    public Integer getTotalStockQuantity() {
+        return totalStockQuantity;
+    }
+
+    public void setTotalStockQuantity(Integer totalStockQuantity) {
+        this.totalStockQuantity = totalStockQuantity;
+    }
+
+    public java.math.BigDecimal getTotalInventoryValue() {
+        return totalInventoryValue;
+    }
+
+    public void setTotalInventoryValue(java.math.BigDecimal totalInventoryValue) {
+        this.totalInventoryValue = totalInventoryValue;
+    }
+
+    public Integer getLowStockProductCount() {
+        return lowStockProductCount;
+    }
+
+    public void setLowStockProductCount(Integer lowStockProductCount) {
+        this.lowStockProductCount = lowStockProductCount;
+    }
+
+    public Integer getExpiringSoonProductCount() {
+        return expiringSoonProductCount;
+    }
+
+    public void setExpiringSoonProductCount(Integer expiringSoonProductCount) {
+        this.expiringSoonProductCount = expiringSoonProductCount;
     }
 }

@@ -24,6 +24,17 @@ public class CategoryController extends BaseController {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String pathInfo = req.getPathInfo();
+        if (pathInfo != null && (pathInfo.equals("/merge") || pathInfo.equals("/merge/"))) {
+            handleVoid(resp, () -> {
+                java.util.Map<?, ?> body = parseBody(req, java.util.Map.class);
+                String sourceId = body != null && body.get("sourceCategoryId") != null ? body.get("sourceCategoryId").toString() : null;
+                String targetId = body != null && body.get("targetCategoryId") != null ? body.get("targetCategoryId").toString() : null;
+                categoryService.mergeCategories(sourceId, targetId);
+            }, "Gộp danh mục thành công");
+            return;
+        }
+
         handle(resp, HttpServletResponse.SC_CREATED, () -> {
             CategoryRequest requestDto = parseBody(req, CategoryRequest.class);
             if (requestDto == null) {

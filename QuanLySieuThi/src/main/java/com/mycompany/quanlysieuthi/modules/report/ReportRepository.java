@@ -39,22 +39,42 @@ public class ReportRepository extends BaseRepository<InventoryReport, String> {
         private String note;
         private Map<String, String> itemReasons = new ConcurrentHashMap<>();
 
-        public AuditMeta() {}
+        public AuditMeta() {
+        }
+
         public AuditMeta(String auditTitle, String note) {
             this.auditTitle = auditTitle;
             this.note = note;
         }
 
-        public String getAuditTitle() { return auditTitle; }
-        public void setAuditTitle(String auditTitle) { this.auditTitle = auditTitle; }
-        public String getNote() { return note; }
-        public void setNote(String note) { this.note = note; }
-        public Map<String, String> getItemReasons() { return itemReasons; }
-        public void setItemReasons(Map<String, String> itemReasons) { this.itemReasons = itemReasons; }
+        public String getAuditTitle() {
+            return auditTitle;
+        }
+
+        public void setAuditTitle(String auditTitle) {
+            this.auditTitle = auditTitle;
+        }
+
+        public String getNote() {
+            return note;
+        }
+
+        public void setNote(String note) {
+            this.note = note;
+        }
+
+        public Map<String, String> getItemReasons() {
+            return itemReasons;
+        }
+
+        public void setItemReasons(Map<String, String> itemReasons) {
+            this.itemReasons = itemReasons;
+        }
     }
 
     private static final Map<String, AuditMeta> AUDIT_META_CACHE = new ConcurrentHashMap<>();
-    private static final File META_FILE = new File(System.getProperty("java.io.tmpdir"), "quanlysieuthi_audit_meta.ser");
+    private static final File META_FILE = new File(System.getProperty("java.io.tmpdir"),
+            "quanlysieuthi_audit_meta.ser");
 
     static {
         loadAuditMetaFile();
@@ -85,7 +105,8 @@ public class ReportRepository extends BaseRepository<InventoryReport, String> {
     }
 
     public static void saveAuditMeta(String reportId, String title, String note, Map<String, String> reasons) {
-        if (reportId == null) return;
+        if (reportId == null)
+            return;
         AuditMeta meta = new AuditMeta(title, note);
         if (reasons != null) {
             meta.getItemReasons().putAll(reasons);
@@ -95,7 +116,8 @@ public class ReportRepository extends BaseRepository<InventoryReport, String> {
     }
 
     public static AuditMeta getAuditMeta(String reportId) {
-        if (reportId == null) return null;
+        if (reportId == null)
+            return null;
         return AUDIT_META_CACHE.get(reportId);
     }
 
@@ -146,18 +168,18 @@ public class ReportRepository extends BaseRepository<InventoryReport, String> {
     }
 
     public List<ReportResponse.ListItemDto> findAuditReports(int page, int limit,
-                                                             String employeeId,
-                                                             LocalDateTime fromDateTime,
-                                                             LocalDateTime toDateTime) {
+            String employeeId,
+            LocalDateTime fromDateTime,
+            LocalDateTime toDateTime) {
         EntityManager em = JpaUtil.getEntityManager();
         try {
             StringBuilder jpql = new StringBuilder(
                     "SELECT ir.reportId, ir.reportDate, e.employeeId, e.fullName, e.username, " +
-                    "SUM(CASE WHEN d.actualQuantity <> d.systemQuantity THEN 1L ELSE 0L END) " +
-                    "FROM InventoryReport ir " +
-                    "LEFT JOIN Employee e ON ir.employeeId = e.employeeId " +
-                    "LEFT JOIN InventoryReportDetail d ON ir.reportId = d.reportId " +
-                    "WHERE 1=1 ");
+                            "SUM(CASE WHEN d.actualQuantity <> d.systemQuantity THEN 1L ELSE 0L END) " +
+                            "FROM InventoryReport ir " +
+                            "LEFT JOIN Employee e ON ir.employeeId = e.employeeId " +
+                            "LEFT JOIN InventoryReportDetail d ON ir.reportId = d.reportId " +
+                            "WHERE 1=1 ");
 
             if (employeeId != null && !employeeId.trim().isEmpty()) {
                 jpql.append("AND ir.employeeId = :employeeId ");
@@ -273,34 +295,30 @@ public class ReportRepository extends BaseRepository<InventoryReport, String> {
                     ? meta.getNote().trim()
                     : "Biên bản kiểm kê kho định kỳ";
 
-            String detailJpql = "SELECT d.reportId, d.productId, p.productName, c.categoryName, " +
-                    "d.systemQuantity, d.actualQuantity " +
-                    "FROM InventoryReportDetail d " +
-                    "LEFT JOIN Product p ON d.productId = p.productId " +
-                    "LEFT JOIN ProductCategory c ON p.categoryId = c.categoryId " +
-                    "WHERE d.reportId = :reportId";
+            // Sử dụng View dbo.vw_InventoryAuditDiscrepancy đã được đóng gói logic tính
+            // toán sai lệch và phân loại
+            String viewSql = "SELECT report_id, product_id, product_name, category_name, " +
+                    "system_quantity, actual_quantity, discrepancy_quantity, discrepancy_status, discrepancy_amount " +
+                    "FROM dbo.vw_InventoryAuditDiscrepancy WHERE report_id = :reportId";
 
-            List<Object[]> detailRows = em.createQuery(detailJpql, Object[].class)
+            List<?> detailRows = em.createNativeQuery(viewSql)
                     .setParameter("reportId", reportId)
                     .getResultList();
 
             List<ReportResponse.DetailItemDto> items = new ArrayList<>();
             int totalDiscrepancyItems = 0;
 
-            for (Object[] dRow : detailRows) {
+            for (Object obj : detailRows) {
+                Object[] dRow = (Object[]) obj;
                 String rId = (String) dRow[0];
                 String pId = (String) dRow[1];
                 String pName = (String) dRow[2];
                 String cName = (String) dRow[3];
-                Integer sysQty = (Integer) dRow[4];
-                Integer actQty = (Integer) dRow[5];
-
-                int systemQty = sysQty != null ? sysQty : 0;
-                int actualQty = actQty != null ? actQty : 0;
-                int diff = actualQty - systemQty;
+                Integer sysQty = dRow[4] != null ? ((Number) dRow[4]).intValue() : 0;
+                Integer actQty = dRow[5] != null ? ((Number) dRow[5]).intValue() : 0;
+                Integer diff = dRow[6] != null ? ((Number) dRow[6]).intValue() : 0;
 
                 String status;
-                String reason;
                 if (diff < 0) {
                     status = "SHORTAGE";
                     totalDiscrepancyItems++;
@@ -314,6 +332,7 @@ public class ReportRepository extends BaseRepository<InventoryReport, String> {
                 String customReason = (meta != null && meta.getItemReasons() != null)
                         ? meta.getItemReasons().get(pId)
                         : null;
+                String reason;
                 if (customReason != null && !customReason.trim().isEmpty()) {
                     reason = customReason.trim();
                 } else if (diff < 0) {
@@ -331,8 +350,8 @@ public class ReportRepository extends BaseRepository<InventoryReport, String> {
                         pId,
                         pName != null ? pName : "",
                         cName != null ? cName : "",
-                        systemQty,
-                        actualQty,
+                        sysQty,
+                        actQty,
                         diff,
                         status,
                         reason));
@@ -346,6 +365,115 @@ public class ReportRepository extends BaseRepository<InventoryReport, String> {
                     empDto,
                     totalDiscrepancyItems,
                     items));
+        } finally {
+            em.close();
+        }
+    }
+
+    /**
+     * Khởi tạo một phiên kiểm kê kho mới cho toàn bộ một danh mục hàng hóa
+     * thông qua Stored Procedure dbo.sp_CreateInventoryAuditSession.
+     * Tự động snapshot số lượng tồn hệ thống của tất cả sản phẩm thuộc danh mục.
+     */
+    public int createInventoryAuditSession(String reportId, String employeeId, String categoryId) {
+        EntityManager em = JpaUtil.getEntityManager();
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            jakarta.persistence.StoredProcedureQuery sp = em
+                    .createStoredProcedureQuery("dbo.sp_CreateInventoryAuditSession");
+            sp.registerStoredProcedureParameter("ReportId", String.class, jakarta.persistence.ParameterMode.IN);
+            sp.registerStoredProcedureParameter("EmployeeId", String.class, jakarta.persistence.ParameterMode.IN);
+            sp.registerStoredProcedureParameter("CategoryId", String.class, jakarta.persistence.ParameterMode.IN);
+            sp.registerStoredProcedureParameter("TotalItemsCreated", Integer.class,
+                    jakarta.persistence.ParameterMode.OUT);
+
+            sp.setParameter("ReportId", reportId);
+            sp.setParameter("EmployeeId", employeeId);
+            sp.setParameter("CategoryId", categoryId);
+
+            sp.execute();
+            Integer total = (Integer) sp.getOutputParameterValue("TotalItemsCreated");
+            tx.commit();
+            return total != null ? total : 0;
+        } catch (Exception e) {
+            if (tx.isActive()) {
+                tx.rollback();
+            }
+            Throwable root = e;
+            while (root.getCause() != null) {
+                root = root.getCause();
+            }
+            throw new RuntimeException("Lỗi khởi tạo phiên kiểm kê: " + root.getMessage(), e);
+        } finally {
+            em.close();
+        }
+    }
+
+    /**
+     * Chốt đợt kiểm kê kho và tự động xuất hủy hàng hao hụt
+     * thông qua Stored Procedure dbo.sp_FinalizeAuditAndAutoDispose.
+     * Cập nhật tồn kho theo số lượng thực tế kiểm kê và tự động sinh voucher/phiếu
+     * xuất hủy nếu có thiếu hụt.
+     */
+    public void finalizeAuditAndAutoDispose(String reportId, String disposalVoucherId, String employeeId) {
+        EntityManager em = JpaUtil.getEntityManager();
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            jakarta.persistence.StoredProcedureQuery sp = em
+                    .createStoredProcedureQuery("dbo.sp_FinalizeAuditAndAutoDispose");
+            sp.registerStoredProcedureParameter("ReportId", String.class, jakarta.persistence.ParameterMode.IN);
+            sp.registerStoredProcedureParameter("DisposalVoucherId", String.class,
+                    jakarta.persistence.ParameterMode.IN);
+            sp.registerStoredProcedureParameter("EmployeeId", String.class, jakarta.persistence.ParameterMode.IN);
+
+            sp.setParameter("ReportId", reportId);
+            sp.setParameter("DisposalVoucherId", disposalVoucherId);
+            sp.setParameter("EmployeeId", employeeId);
+
+            sp.execute();
+            tx.commit();
+        } catch (Exception e) {
+            if (tx.isActive()) {
+                tx.rollback();
+            }
+            Throwable root = e;
+            while (root.getCause() != null) {
+                root = root.getCause();
+            }
+            throw new RuntimeException("Lỗi chốt kiểm kê và tạo phiếu xuất hủy: " + root.getMessage(), e);
+        } finally {
+            em.close();
+        }
+    }
+
+    /**
+     * Báo cáo tình hình kho theo danh mục từ View
+     * dbo.vw_ProductCategoryInventorySummary.
+     */
+    public List<Map<String, Object>> findCategoryInventoryReport() {
+        EntityManager em = JpaUtil.getEntityManager();
+        try {
+            String sql = "SELECT category_id, category_name, total_products, total_stock_quantity, " +
+                    "total_inventory_value, low_stock_product_count, expiring_soon_product_count " +
+                    "FROM dbo.vw_ProductCategoryInventorySummary ORDER BY total_inventory_value DESC";
+            Query q = em.createNativeQuery(sql);
+            List<?> rows = q.getResultList();
+            List<Map<String, Object>> list = new ArrayList<>();
+            for (Object obj : rows) {
+                Object[] r = (Object[]) obj;
+                Map<String, Object> map = new HashMap<>();
+                map.put("categoryId", r[0]);
+                map.put("categoryName", r[1]);
+                map.put("totalProducts", r[2]);
+                map.put("totalStockQuantity", r[3]);
+                map.put("totalInventoryValue", r[4]);
+                map.put("lowStockProductCount", r[5]);
+                map.put("expiringSoonProductCount", r[6]);
+                list.add(map);
+            }
+            return list;
         } finally {
             em.close();
         }

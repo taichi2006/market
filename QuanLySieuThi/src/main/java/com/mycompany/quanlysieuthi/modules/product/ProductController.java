@@ -27,6 +27,11 @@ public class ProductController extends BaseController {
             handleGetProducts(req, resp);
         } else if (pathInfo.equals("/low-stock/alerts") || pathInfo.equals("/low-stock/alerts/")) {
             handleGetLowStockAlerts(req, resp);
+        } else if (pathInfo.equals("/expiring") || pathInfo.equals("/expiring/")) {
+            handleGetExpiringProducts(req, resp);
+        } else if (pathInfo.endsWith("/risk") || pathInfo.endsWith("/risk/")) {
+            String id = pathInfo.replace("/risk", "").replace("/", "").trim();
+            handle(resp, () -> productService.evaluateProductStockRisk(id), "Đánh giá mức độ rủi ro kho thành công.");
         } else {
             String id = extractPathId(req);
             if (id == null || id.isEmpty()) {
@@ -35,6 +40,34 @@ public class ProductController extends BaseController {
                 handleGetProductById(id, resp);
             }
         }
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String pathInfo = req.getPathInfo();
+        if (pathInfo != null && pathInfo.contains("/adjust-stock")) {
+            String[] parts = pathInfo.split("/");
+            String id = (parts.length > 1) ? parts[1] : "";
+            handle(resp, () -> {
+                java.util.Map<?, ?> body = parseBody(req, java.util.Map.class);
+                Integer qty = body != null && body.get("quantityChange") != null ? ((Number) body.get("quantityChange")).intValue() : 0;
+                String reason = body != null && body.get("reason") != null ? body.get("reason").toString() : "";
+                int newStock = productService.adjustStock(id, qty, reason);
+                return java.util.Map.of("productId", id, "newStock", newStock);
+            }, "Điều chỉnh tồn kho thành công.");
+            return;
+        } else if (pathInfo != null && pathInfo.contains("/deduct-stock")) {
+            String[] parts = pathInfo.split("/");
+            String id = (parts.length > 1) ? parts[1] : "";
+            handleVoid(resp, () -> {
+                java.util.Map<?, ?> body = parseBody(req, java.util.Map.class);
+                Integer qty = body != null && body.get("quantity") != null ? ((Number) body.get("quantity")).intValue() : 0;
+                productService.safeDeductStock(id, qty);
+            }, "Trừ tồn kho an toàn thành công.");
+            return;
+        }
+
+        sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint không hợp lệ.");
     }
 
     @Override
@@ -88,5 +121,18 @@ public class ProductController extends BaseController {
 
             return productService.getLowStockAlerts(threshold, categoryId, page, limit);
         }, "Lấy danh sách cảnh báo tồn kho thành công.");
+    }
+
+    private void handleGetExpiringProducts(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        handle(resp, () -> {
+            Integer days = null;
+            String daysStr = req.getParameter("days");
+            if (daysStr != null && !daysStr.trim().isEmpty()) {
+                try {
+                    days = Integer.parseInt(daysStr.trim());
+                } catch (NumberFormatException ignored) {}
+            }
+            return productService.getExpiringProducts(days);
+        }, "Lấy danh sách sản phẩm sắp hết hạn thành công.");
     }
 }

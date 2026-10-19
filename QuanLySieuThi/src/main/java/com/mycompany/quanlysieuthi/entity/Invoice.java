@@ -2,7 +2,10 @@ package com.mycompany.quanlysieuthi.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.io.Serializable;
@@ -26,8 +29,16 @@ public class Invoice implements Serializable {
     @Column(name = "customer_id", length = 36)
     private String customerId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", referencedColumnName = "customer_id", insertable = false, updatable = false)
+    private Customer customer;
+
     @Column(name = "employee_id", length = 36)
     private String employeeId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", referencedColumnName = "employee_id", insertable = false, updatable = false)
+    private Employee employee;
 
     @Column(name = "status", length = 30, nullable = false)
     private String status;
@@ -71,6 +82,17 @@ public class Invoice implements Serializable {
         this.customerId = customerId;
     }
 
+    public Customer getCustomer() {
+        return customer;
+    }
+
+    public void setCustomer(Customer customer) {
+        this.customer = customer;
+        if (customer != null) {
+            this.customerId = customer.getCustomerId();
+        }
+    }
+
     public String getEmployeeId() {
         return employeeId;
     }
@@ -78,6 +100,18 @@ public class Invoice implements Serializable {
     public void setEmployeeId(String employeeId) {
         this.employeeId = employeeId;
     }
+
+    public Employee getEmployee() {
+        return employee;
+    }
+
+    public void setEmployee(Employee employee) {
+        this.employee = employee;
+        if (employee != null) {
+            this.employeeId = employee.getEmployeeId();
+        }
+    }
+
 
     public String getStatus() {
         return status;

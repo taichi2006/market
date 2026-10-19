@@ -211,6 +211,45 @@ public class ReportService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy biên bản kiểm kê với ID tương ứng: " + id.trim()));
     }
 
+    /**
+     * Khởi tạo phiên kiểm kê kho theo toàn bộ danh mục thông qua Stored Procedure dbo.sp_CreateInventoryAuditSession.
+     */
+    public ReportResponse.DetailResponse createAuditSessionByCategory(String categoryId, String employeeId, String employeeFullName, String title, String note) {
+        if (categoryId == null || categoryId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã loại sản phẩm (categoryId) không được để trống");
+        }
+        String reportId = IdGenerator.nextReportId();
+        String sessionTitle = (title != null && !title.trim().isEmpty()) ? title.trim() : ("Kiểm kê kho theo danh mục " + categoryId.trim());
+
+        reportRepository.createInventoryAuditSession(reportId, employeeId != null ? employeeId : "", categoryId.trim());
+        ReportRepository.saveAuditMeta(reportId, sessionTitle, note, null);
+
+        return reportRepository.findAuditReportDetailById(reportId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy biên bản kiểm kê vừa tạo: " + reportId));
+    }
+
+    /**
+     * Chốt đợt kiểm kê kho, đồng bộ tồn kho thực tế và tự động xuất hủy hàng hao hụt
+     * thông qua Stored Procedure dbo.sp_FinalizeAuditAndAutoDispose.
+     */
+    public ReportResponse.DetailResponse finalizeAuditReport(String reportId, String employeeId) {
+        if (reportId == null || reportId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã biên bản kiểm kê không được để trống");
+        }
+        String disposalVoucherId = IdGenerator.nextVoucherId();
+        reportRepository.finalizeAuditAndAutoDispose(reportId.trim(), disposalVoucherId, employeeId != null ? employeeId : "");
+
+        return reportRepository.findAuditReportDetailById(reportId.trim())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy biên bản kiểm kê với ID tương ứng: " + reportId.trim()));
+    }
+
+    /**
+     * Báo cáo tổng quan tình hình kho theo danh mục từ View dbo.vw_ProductCategoryInventorySummary.
+     */
+    public List<Map<String, Object>> getCategoryInventoryReport() {
+        return reportRepository.findCategoryInventoryReport();
+    }
+
     private String formatIso(LocalDateTime dateTime) {
         if (dateTime == null) {
             return null;

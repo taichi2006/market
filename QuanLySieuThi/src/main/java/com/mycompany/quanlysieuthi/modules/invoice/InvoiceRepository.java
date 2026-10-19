@@ -1,26 +1,24 @@
 package com.mycompany.quanlysieuthi.modules.invoice;
 
 import com.mycompany.quanlysieuthi.common.base.BaseRepository;
-import com.mycompany.quanlysieuthi.config.JpaUtil;
 import com.mycompany.quanlysieuthi.entity.Customer;
 import com.mycompany.quanlysieuthi.entity.Invoice;
 import com.mycompany.quanlysieuthi.entity.InvoiceDetail;
 import com.mycompany.quanlysieuthi.entity.Product;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityTransaction;
 import jakarta.persistence.Query;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.function.Function;
 
 /**
- * Repository handling database operations for Invoice module.
+ * Repository xử lý dữ liệu cho module Hóa đơn (Invoice),
+ * tích hợp tối ưu với View, Function, Stored Procedure và quản lý kết nối an toàn.
  */
 public class InvoiceRepository extends BaseRepository<Invoice, String> {
 
@@ -31,304 +29,198 @@ public class InvoiceRepository extends BaseRepository<Invoice, String> {
     }
 
     public Optional<Product> findProductById(String productId) {
-        if (productId == null || productId.trim().isEmpty()) {
-            return Optional.empty();
-        }
-        EntityManager em = JpaUtil.getEntityManager();
-        try {
-            Product product = em.find(Product.class, productId.trim());
-            return Optional.ofNullable(product);
-        } finally {
-            em.close();
-        }
+        if (productId == null || productId.isBlank()) return Optional.empty();
+        return query(em -> Optional.ofNullable(em.find(Product.class, productId.trim())));
     }
 
     public Optional<Customer> findCustomerById(String customerId) {
-        if (customerId == null || customerId.trim().isEmpty()) {
-            return Optional.empty();
-        }
-        EntityManager em = JpaUtil.getEntityManager();
-        try {
-            Customer customer = em.find(Customer.class, customerId.trim());
-            return Optional.ofNullable(customer);
-        } finally {
-            em.close();
-        }
+        if (customerId == null || customerId.isBlank()) return Optional.empty();
+        return query(em -> Optional.ofNullable(em.find(Customer.class, customerId.trim())));
     }
 
-    public void saveInvoice(Invoice invoice, List<InvoiceDetail> details, Customer customer, Map<String, Integer> stockDeductions) {
-        EntityManager em = JpaUtil.getEntityManager();
-        EntityTransaction tx = em.getTransaction();
-        try {
-            tx.begin();
-
+    public void saveInvoice(Invoice invoice, List<InvoiceDetail> details, Customer customer,
+                            Map<String, Integer> stockDeductions) {
+        executeInTransaction(em -> {
             for (Map.Entry<String, Integer> entry : stockDeductions.entrySet()) {
                 Product product = em.find(Product.class, entry.getKey());
                 if (product == null) {
                     throw new IllegalArgumentException("Không tìm thấy sản phẩm: " + entry.getKey());
                 }
                 if (product.getStockQuantity() < entry.getValue()) {
-                    throw new IllegalArgumentException("Sản phẩm '" + product.getProductName() + "' không đủ số lượng tồn kho");
+                    throw new IllegalArgumentException(
+                            "Sản phẩm '" + product.getProductName() + "' không đủ số lượng tồn kho");
                 }
                 product.setStockQuantity(product.getStockQuantity() - entry.getValue());
                 em.merge(product);
             }
-
             if (customer != null) {
                 em.merge(customer);
             }
-
             em.persist(invoice);
-
-            for (InvoiceDetail detail : details) {
-                em.persist(detail);
-            }
-
-            tx.commit();
-        } catch (Exception e) {
-            if (tx.isActive()) {
-                tx.rollback();
-            }
-            throw e;
-        } finally {
-            em.close();
-        }
+            details.forEach(em::persist);
+        });
     }
 
     @SuppressWarnings("unchecked")
     public List<InvoiceResponse.ListItemDto> findInvoices(Integer page, Integer limit, String status,
-                                                          String fromDate, String toDate,
-                                                          String customerId, String employeeId) {
-        EntityManager em = JpaUtil.getEntityManager();
-        try {
-            int pageNum = (page == null || page < 1) ? 1 : page;
-            int limitNum = (limit == null || limit < 1) ? 10 : limit;
-            int offset = (pageNum - 1) * limitNum;
+                                                         String fromDate, String toDate,
+                                                         String customerId, String employeeId) {
+        int pageNum = (page == null || page < 1) ? 1 : page;
+        int limitNum = (limit == null || limit < 1) ? 10 : limit;
 
+        return query(em -> {
             StringBuilder sql = new StringBuilder(
-                    "SELECT inv.invoice_id, inv.created_at, inv.status, inv.original_total, inv.discount_amount, " +
-                    "e.employee_id, e.full_name, " +
-                    "c.customer_id, c.full_name AS customer_name, c.phone_number " +
-                    "FROM invoice inv " +
-                    "LEFT JOIN employee e ON inv.employee_id = e.employee_id " +
-                    "LEFT JOIN customer c ON inv.customer_id = c.customer_id " +
-                    "WHERE 1=1 "
-            );
+                    "SELECT invoice_id, created_at, status, original_total, discount_amount, "
+                    + "employee_id, employee_name, customer_id, customer_name, customer_phone "
+                    + "FROM v_invoice_summary WHERE 1=1 ");
+            Map<String, Object> params = new HashMap<>();
 
-            if (status != null && !status.trim().isEmpty()) {
-                sql.append("AND inv.status = :status ");
+            if (status != null && !status.isBlank()) {
+                sql.append("AND status = :status ");
+                params.put("status", status.trim().toUpperCase());
             }
-            if (fromDate != null && !fromDate.trim().isEmpty()) {
-                sql.append("AND inv.created_at >= :fromDateTime ");
+            if (fromDate != null && !fromDate.isBlank()) {
+                sql.append("AND created_at >= :fromDateTime ");
+                params.put("fromDateTime", Timestamp.valueOf(fromDate.trim() + " 00:00:00"));
             }
-            if (toDate != null && !toDate.trim().isEmpty()) {
-                sql.append("AND inv.created_at <= :toDateTime ");
+            if (toDate != null && !toDate.isBlank()) {
+                sql.append("AND created_at <= :toDateTime ");
+                params.put("toDateTime", Timestamp.valueOf(toDate.trim() + " 23:59:59"));
             }
-            if (customerId != null && !customerId.trim().isEmpty()) {
-                sql.append("AND inv.customer_id = :customerId ");
+            if (customerId != null && !customerId.isBlank()) {
+                sql.append("AND customer_id = :customerId ");
+                params.put("customerId", customerId.trim());
             }
-            if (employeeId != null && !employeeId.trim().isEmpty()) {
-                sql.append("AND inv.employee_id = :employeeId ");
+            if (employeeId != null && !employeeId.isBlank()) {
+                sql.append("AND employee_id = :employeeId ");
+                params.put("employeeId", employeeId.trim());
             }
 
-            sql.append("ORDER BY inv.created_at DESC ");
-            sql.append("LIMIT :limit OFFSET :offset");
-
+            sql.append("ORDER BY created_at DESC");
             Query query = em.createNativeQuery(sql.toString());
-
-            if (status != null && !status.trim().isEmpty()) {
-                query.setParameter("status", status.trim().toUpperCase());
-            }
-            if (fromDate != null && !fromDate.trim().isEmpty()) {
-                query.setParameter("fromDateTime", Timestamp.valueOf(fromDate.trim() + " 00:00:00"));
-            }
-            if (toDate != null && !toDate.trim().isEmpty()) {
-                query.setParameter("toDateTime", Timestamp.valueOf(toDate.trim() + " 23:59:59"));
-            }
-            if (customerId != null && !customerId.trim().isEmpty()) {
-                query.setParameter("customerId", customerId.trim());
-            }
-            if (employeeId != null && !employeeId.trim().isEmpty()) {
-                query.setParameter("employeeId", employeeId.trim());
-            }
-
-            query.setParameter("limit", limitNum);
-            query.setParameter("offset", offset);
+            params.forEach(query::setParameter);
+            query.setFirstResult((pageNum - 1) * limitNum);
+            query.setMaxResults(limitNum);
 
             List<Object[]> rows = query.getResultList();
-            List<InvoiceResponse.ListItemDto> list = new ArrayList<>();
-
-            for (Object[] row : rows) {
-                BigDecimal orig = toBigDecimal(row[3]);
-                BigDecimal disc = toBigDecimal(row[4]);
+            List<InvoiceResponse.ListItemDto> list = new ArrayList<>(rows.size());
+            for (Object[] r : rows) {
+                BigDecimal orig = toBigDecimal(r[3]);
+                BigDecimal disc = toBigDecimal(r[4]);
                 list.add(new InvoiceResponse.ListItemDto(
-                        (String) row[0],
-                        formatTimestamp(row[1]),
-                        (String) row[2],
-                        orig,
-                        disc,
-                        orig.subtract(disc),
-                        row[5] != null ? new InvoiceResponse.EmployeeDto((String) row[5], (String) row[6]) : null,
-                        row[7] != null ? new InvoiceResponse.CustomerDto((String) row[7], (String) row[8], (String) row[9]) : null
-                ));
+                        (String) r[0], formatIso(r[1]), (String) r[2], orig, disc, orig.subtract(disc),
+                        r[5] != null ? new InvoiceResponse.EmployeeDto((String) r[5], (String) r[6]) : null,
+                        r[7] != null ? new InvoiceResponse.CustomerDto((String) r[7], (String) r[8], (String) r[9]) : null));
             }
-
             return list;
-        } finally {
-            em.close();
-        }
+        });
     }
 
     @SuppressWarnings("unchecked")
     public Optional<InvoiceResponse.DetailResponse> findInvoiceDetailById(String invoiceId) {
-        if (invoiceId == null || invoiceId.trim().isEmpty()) {
-            return Optional.empty();
-        }
-        EntityManager em = JpaUtil.getEntityManager();
-        try {
-            String sql = "SELECT inv.invoice_id, inv.created_at, inv.status, inv.original_total, inv.discount_amount, " +
-                    "e.employee_id, e.full_name, e.username, " +
-                    "c.customer_id, c.full_name AS customer_name, c.phone_number, c.loyalty_points " +
-                    "FROM invoice inv " +
-                    "LEFT JOIN employee e ON inv.employee_id = e.employee_id " +
-                    "LEFT JOIN customer c ON inv.customer_id = c.customer_id " +
-                    "WHERE inv.invoice_id = :invoiceId";
+        if (invoiceId == null || invoiceId.isBlank()) return Optional.empty();
 
-            Query query = em.createNativeQuery(sql);
-            query.setParameter("invoiceId", invoiceId.trim());
+        return query(em -> {
+            List<Object[]> rows = em.createNativeQuery(
+                    "SELECT invoice_id, created_at, status, original_total, discount_amount, "
+                    + "employee_id, employee_name, employee_username, "
+                    + "customer_id, customer_name, customer_phone, customer_loyalty_points "
+                    + "FROM v_invoice_summary WHERE invoice_id = :invoiceId")
+                    .setParameter("invoiceId", invoiceId.trim())
+                    .getResultList();
+            if (rows.isEmpty()) return Optional.empty();
 
-            List<Object[]> rows = query.getResultList();
-            if (rows.isEmpty()) {
-                return Optional.empty();
-            }
+            Object[] r = rows.get(0);
+            BigDecimal orig = toBigDecimal(r[3]);
+            BigDecimal disc = toBigDecimal(r[4]);
 
-            Object[] row = rows.get(0);
-            BigDecimal orig = toBigDecimal(row[3]);
-            BigDecimal disc = toBigDecimal(row[4]);
-
-            String itemsSql = "SELECT d.invoice_detail_id, d.product_id, p.product_name, d.quantity, d.unit_price, d.subtotal " +
-                    "FROM invoice_detail d " +
-                    "JOIN product p ON d.product_id = p.product_id " +
-                    "WHERE d.invoice_id = :invoiceId";
-
-            Query itemsQuery = em.createNativeQuery(itemsSql);
-            itemsQuery.setParameter("invoiceId", invoiceId.trim());
-
-            List<Object[]> itemRows = itemsQuery.getResultList();
-            List<InvoiceResponse.ItemDetailDto> items = new ArrayList<>();
-            for (Object[] ir : itemRows) {
-                items.add(new InvoiceResponse.ItemDetailDto(
-                        (String) ir[0],
-                        (String) ir[1],
-                        (String) ir[2],
-                        ir[3] != null ? ((Number) ir[3]).intValue() : 0,
-                        toBigDecimal(ir[4]),
-                        toBigDecimal(ir[5])
-                ));
-            }
-
-            return Optional.of(new InvoiceResponse.DetailResponse(
-                    (String) row[0],
-                    formatTimestamp(row[1]),
-                    (String) row[2],
-                    orig,
-                    disc,
-                    orig.subtract(disc),
-                    row[5] != null ? new InvoiceResponse.EmployeeDto((String) row[5], (String) row[6], (String) row[7]) : null,
-                    row[8] != null ? new InvoiceResponse.CustomerDto((String) row[8], (String) row[9], (String) row[10], row[11] != null ? ((Number) row[11]).intValue() : null) : null,
-                    items
-            ));
-        } finally {
-            em.close();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    public boolean cancelInvoice(String invoiceId) {
-        if (invoiceId == null || invoiceId.trim().isEmpty()) {
-            return false;
-        }
-        EntityManager em = JpaUtil.getEntityManager();
-        EntityTransaction tx = em.getTransaction();
-        try {
-            tx.begin();
-
-            Invoice invoice = em.find(Invoice.class, invoiceId.trim());
-            if (invoice == null) {
-                tx.rollback();
-                return false;
-            }
-
-            if (!"PENDING".equalsIgnoreCase(invoice.getStatus())) {
-                throw new IllegalStateException("Hóa đơn đã ở trạng thái " + invoice.getStatus() +
-                        " (chỉ cho phép hủy hóa đơn PENDING).");
-            }
-
-            String detailSql = "SELECT d FROM InvoiceDetail d WHERE d.invoiceId = :invoiceId";
-            List<InvoiceDetail> details = em.createQuery(detailSql, InvoiceDetail.class)
+            List<Object[]> itemRows = em.createNativeQuery(
+                    "SELECT invoice_detail_id, product_id, product_name, quantity, unit_price, subtotal "
+                    + "FROM dbo.fn_GetInvoiceItemsDetail(:invoiceId)")
                     .setParameter("invoiceId", invoiceId.trim())
                     .getResultList();
 
-            for (InvoiceDetail detail : details) {
-                Product product = em.find(Product.class, detail.getProductId());
-                if (product != null) {
-                    product.setStockQuantity(product.getStockQuantity() + detail.getQuantity());
-                    em.merge(product);
-                }
+            List<InvoiceResponse.ItemDetailDto> items = new ArrayList<>(itemRows.size());
+            for (Object[] ir : itemRows) {
+                items.add(new InvoiceResponse.ItemDetailDto(
+                        (String) ir[0], (String) ir[1], (String) ir[2],
+                        ir[3] != null ? ((Number) ir[3]).intValue() : 0,
+                        toBigDecimal(ir[4]), toBigDecimal(ir[5])));
             }
 
-            if (invoice.getCustomerId() != null && !invoice.getCustomerId().trim().isEmpty()) {
-                Customer customer = em.find(Customer.class, invoice.getCustomerId());
-                if (customer != null) {
-                    BigDecimal discount = invoice.getDiscountAmount();
-                    if (discount != null && discount.compareTo(BigDecimal.ZERO) > 0) {
-                        int refundPoints = discount.intValue();
-                        int current = customer.getLoyaltyPoints() != null ? customer.getLoyaltyPoints() : 0;
-                        customer.setLoyaltyPoints(current + refundPoints);
-                    } else {
-                        int pointsEarned = (int) Math.floor(invoice.getOriginalTotal().doubleValue() / 10000.0) * 100;
-                        int current = customer.getLoyaltyPoints() != null ? customer.getLoyaltyPoints() : 0;
-                        customer.setLoyaltyPoints(Math.max(0, current - pointsEarned));
-                    }
-                    em.merge(customer);
-                }
-            }
+            return Optional.of(new InvoiceResponse.DetailResponse(
+                    (String) r[0], formatIso(r[1]), (String) r[2], orig, disc, orig.subtract(disc),
+                    r[5] != null ? new InvoiceResponse.EmployeeDto((String) r[5], (String) r[6], (String) r[7]) : null,
+                    r[8] != null ? new InvoiceResponse.CustomerDto((String) r[8], (String) r[9], (String) r[10],
+                            r[11] != null ? ((Number) r[11]).intValue() : null) : null,
+                    items));
+        });
+    }
 
-            invoice.setStatus("CANCELLED");
-            em.merge(invoice);
-
-            tx.commit();
-            return true;
+    public boolean cancelInvoice(String invoiceId) {
+        if (invoiceId == null || invoiceId.isBlank()) return false;
+        try {
+            return executeInTransactionWithResult(em -> {
+                em.createNativeQuery("EXEC dbo.sp_CancelInvoice :invoiceId")
+                        .setParameter("invoiceId", invoiceId.trim())
+                        .executeUpdate();
+                return true;
+            });
         } catch (Exception e) {
-            if (tx.isActive()) {
-                tx.rollback();
-            }
-            throw e;
-        } finally {
-            em.close();
+            Throwable root = e;
+            while (root.getCause() != null) root = root.getCause();
+            String msg = root.getMessage();
+            if (msg != null && msg.contains("Không tìm thấy")) return false;
+            throw new RuntimeException(msg != null ? msg : e.getMessage(), e);
         }
     }
 
-    private static BigDecimal toBigDecimal(Object value) {
-        if (value == null) {
+    public BigDecimal calculateLoyaltyDiscount(String customerId, BigDecimal originalTotal) {
+        if (customerId == null || originalTotal == null) return BigDecimal.ZERO;
+        try {
+            return query(em -> toBigDecimal(em.createNativeQuery(
+                    "SELECT dbo.fn_CalculateLoyaltyDiscount(:customerId, :originalTotal)")
+                    .setParameter("customerId", customerId.trim())
+                    .setParameter("originalTotal", originalTotal)
+                    .getSingleResult()));
+        } catch (Exception ignored) {
             return BigDecimal.ZERO;
         }
-        if (value instanceof BigDecimal) {
-            return (BigDecimal) value;
-        }
-        return new BigDecimal(value.toString());
     }
 
-    private static String formatTimestamp(Object value) {
-        if (value == null) {
-            return null;
+    public int calculateLoyaltyPointsEarned(BigDecimal originalTotal) {
+        if (originalTotal == null) return 0;
+        try {
+            return query(em -> {
+                Object res = em.createNativeQuery(
+                        "SELECT dbo.fn_CalculateLoyaltyPointsEarned(:originalTotal)")
+                        .setParameter("originalTotal", originalTotal)
+                        .getSingleResult();
+                return res != null ? ((Number) res).intValue() : 0;
+            });
+        } catch (Exception ignored) {
+            return 0;
         }
-        if (value instanceof Timestamp) {
-            return ((Timestamp) value).toLocalDateTime().format(ISO_FORMATTER);
+    }
+
+    private <R> R query(Function<EntityManager, R> action) {
+        EntityManager em = getEntityManager();
+        try {
+            return action.apply(em);
+        } finally {
+            if (em.isOpen()) em.close();
         }
-        if (value instanceof LocalDateTime) {
-            return ((LocalDateTime) value).format(ISO_FORMATTER);
-        }
-        return value.toString();
+    }
+
+    private static BigDecimal toBigDecimal(Object val) {
+        if (val == null) return BigDecimal.ZERO;
+        return val instanceof BigDecimal bd ? bd : new BigDecimal(val.toString());
+    }
+
+    private static String formatIso(Object val) {
+        if (val == null) return null;
+        if (val instanceof Timestamp ts) return ts.toLocalDateTime().atOffset(ZoneOffset.UTC).format(ISO_FORMATTER);
+        if (val instanceof LocalDateTime ldt) return ldt.atOffset(ZoneOffset.UTC).format(ISO_FORMATTER);
+        return val.toString();
     }
 }

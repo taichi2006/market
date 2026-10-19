@@ -29,7 +29,7 @@ public class ProductService {
     }
 
     public List<ProductResponse> getProducts(Integer pageParam, Integer limitParam,
-                                             String keyword, String categoryId, String productStatus) {
+            String keyword, String categoryId, String productStatus) {
         int page = (pageParam != null) ? pageParam : 1;
         int limit = (limitParam != null) ? limitParam : 10;
 
@@ -43,7 +43,8 @@ public class ProductService {
         if (productStatus != null && !productStatus.trim().isEmpty()) {
             String status = productStatus.trim().toUpperCase();
             if (!status.equals("ON_SALE") && !status.equals("DISCONTINUED")) {
-                throw new IllegalArgumentException("productStatus không hợp lệ. Chỉ chấp nhận ON_SALE hoặc DISCONTINUED.");
+                throw new IllegalArgumentException(
+                        "productStatus không hợp lệ. Chỉ chấp nhận ON_SALE hoặc DISCONTINUED.");
             }
         }
 
@@ -56,8 +57,7 @@ public class ProductService {
 
             ProductResponse.CategoryDto categoryDto = new ProductResponse.CategoryDto(
                     p.getCategoryId(),
-                    categoryName != null ? categoryName : ""
-            );
+                    categoryName != null ? categoryName : "");
 
             String formattedExpirationDate = formatIsoUtc(p.getExpirationDate());
 
@@ -68,8 +68,7 @@ public class ProductService {
                     p.getStockQuantity(),
                     formattedExpirationDate,
                     p.getProductStatus(),
-                    categoryDto
-            );
+                    categoryDto);
 
             result.add(dto);
         }
@@ -93,8 +92,7 @@ public class ProductService {
 
         ProductResponse.CategoryDto categoryDto = new ProductResponse.CategoryDto(
                 p.getCategoryId(),
-                categoryName != null ? categoryName : ""
-        );
+                categoryName != null ? categoryName : "");
 
         String formattedExpirationDate = formatIsoUtc(p.getExpirationDate());
 
@@ -105,8 +103,7 @@ public class ProductService {
                 p.getStockQuantity(),
                 formattedExpirationDate,
                 p.getProductStatus(),
-                categoryDto
-        );
+                categoryDto);
     }
 
     public ProductResponse.UpdateResponseDto updateProduct(String id, ProductRequest.Update request) {
@@ -141,7 +138,8 @@ public class ProductService {
         if (request.getProductStatus() != null) {
             String status = request.getProductStatus().trim().toUpperCase();
             if (!status.equals("ON_SALE") && !status.equals("DISCONTINUED")) {
-                throw new IllegalArgumentException("productStatus không hợp lệ. Chỉ chấp nhận ON_SALE hoặc DISCONTINUED.");
+                throw new IllegalArgumentException(
+                        "productStatus không hợp lệ. Chỉ chấp nhận ON_SALE hoặc DISCONTINUED.");
             }
             product.setProductStatus(status);
         }
@@ -163,13 +161,13 @@ public class ProductService {
         Optional<Object[]> catRowOpt = productRepository.findProductWithCategoryById(updatedProduct.getProductId());
         if (catRowOpt.isPresent()) {
             categoryName = (String) catRowOpt.get()[1];
-            if (categoryName == null) categoryName = "";
+            if (categoryName == null)
+                categoryName = "";
         }
 
         ProductResponse.CategoryDto categoryDto = new ProductResponse.CategoryDto(
                 updatedProduct.getCategoryId(),
-                categoryName
-        );
+                categoryName);
 
         String formattedExpirationDate = formatIsoUtc(updatedProduct.getExpirationDate());
 
@@ -180,12 +178,11 @@ public class ProductService {
                 updatedProduct.getStockQuantity(),
                 formattedExpirationDate,
                 updatedProduct.getProductStatus(),
-                categoryDto
-        );
+                categoryDto);
     }
 
     public List<ProductResponse.LowStockDto> getLowStockAlerts(Integer thresholdParam, String categoryId,
-                                                               Integer pageParam, Integer limitParam) {
+            Integer pageParam, Integer limitParam) {
         int threshold = (thresholdParam != null) ? thresholdParam : 10;
         int page = (pageParam != null) ? pageParam : 1;
         int limit = (limitParam != null) ? limitParam : 10;
@@ -209,15 +206,13 @@ public class ProductService {
 
             ProductResponse.CategoryDto catDto = new ProductResponse.CategoryDto(
                     p.getCategoryId(),
-                    categoryName != null ? categoryName : ""
-            );
+                    categoryName != null ? categoryName : "");
 
             result.add(new ProductResponse.LowStockDto(
                     p.getProductId(),
                     p.getProductName(),
                     p.getStockQuantity(),
-                    catDto
-            ));
+                    catDto));
         }
 
         return result;
@@ -229,6 +224,55 @@ public class ProductService {
             throw new IllegalArgumentException("Ngưỡng tồn kho (threshold) phải lớn hơn hoặc bằng 0.");
         }
         return productRepository.countLowStockProducts(threshold, categoryId);
+    }
+
+    /**
+     * Đánh giá rủi ro kho của sản phẩm bằng Scalar Function
+     * dbo.fn_EvaluateProductStockRisk.
+     */
+    public ProductResponse.RiskAssessmentDto evaluateProductStockRisk(String productId) {
+        if (productId == null || productId.trim().isEmpty()) {
+            throw new IllegalArgumentException("ID sản phẩm không được để trống.");
+        }
+        String risk = productRepository.evaluateProductStockRisk(productId.trim());
+        return new ProductResponse.RiskAssessmentDto(productId.trim(), risk);
+    }
+
+    /**
+     * Lấy danh sách sản phẩm sắp hết hạn và tính toán giá trị thiệt hại tiềm ẩn
+     * bằng TVF dbo.fn_GetExpiringProductsByDays.
+     */
+    public List<ProductResponse.ExpiringProductDto> getExpiringProducts(Integer thresholdDays) {
+        int threshold = (thresholdDays != null && thresholdDays > 0) ? thresholdDays : 30;
+        return productRepository.findExpiringProducts(threshold);
+    }
+
+    /**
+     * Điều chỉnh số lượng tồn kho sản phẩm có kiểm tra hợp lệ bằng Stored Procedure
+     * dbo.sp_AdjustProductStockWithAudit.
+     */
+    public int adjustStock(String productId, Integer quantityChange, String reason) {
+        if (productId == null || productId.trim().isEmpty()) {
+            throw new IllegalArgumentException("ID sản phẩm không được để trống.");
+        }
+        if (quantityChange == null || quantityChange == 0) {
+            throw new IllegalArgumentException("Số lượng điều chỉnh phải khác 0.");
+        }
+        return productRepository.adjustProductStockWithAudit(productId.trim(), quantityChange, reason);
+    }
+
+    /**
+     * Trừ tồn kho an toàn chống xung đột tranh chấp (Pessimistic Lock) bằng Stored
+     * Procedure dbo.sp_SafeDeductProductStock.
+     */
+    public void safeDeductStock(String productId, Integer deductQuantity) {
+        if (productId == null || productId.trim().isEmpty()) {
+            throw new IllegalArgumentException("ID sản phẩm không được để trống.");
+        }
+        if (deductQuantity == null || deductQuantity <= 0) {
+            throw new IllegalArgumentException("Số lượng trừ kho phải lớn hơn 0.");
+        }
+        productRepository.safeDeductProductStock(productId.trim(), deductQuantity);
     }
 
     private String formatIsoUtc(LocalDateTime dateTime) {

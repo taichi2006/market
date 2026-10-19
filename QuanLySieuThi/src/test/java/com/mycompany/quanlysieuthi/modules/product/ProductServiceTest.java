@@ -46,27 +46,24 @@ class ProductServiceTest {
         @Test
         @DisplayName("Ném ngoại lệ khi tham số page <= 0")
         void testGetProducts_InvalidPage_ThrowsIllegalArgumentException() {
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                    productService.getProducts(0, 10, null, null, null)
-            );
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                    () -> productService.getProducts(0, 10, null, null, null));
             assertEquals("Tham số page phải lớn hơn 0.", ex.getMessage());
         }
 
         @Test
         @DisplayName("Ném ngoại lệ khi tham số limit <= 0")
         void testGetProducts_InvalidLimit_ThrowsIllegalArgumentException() {
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                    productService.getProducts(1, -5, null, null, null)
-            );
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                    () -> productService.getProducts(1, -5, null, null, null));
             assertEquals("Tham số limit phải lớn hơn 0.", ex.getMessage());
         }
 
         @Test
         @DisplayName("Ném ngoại lệ khi productStatus không thuộc ON_SALE hoặc DISCONTINUED")
         void testGetProducts_InvalidStatus_ThrowsIllegalArgumentException() {
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                    productService.getProducts(1, 10, null, null, "OUT_OF_STOCK")
-            );
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                    () -> productService.getProducts(1, 10, null, null, "OUT_OF_STOCK"));
             assertEquals("productStatus không hợp lệ. Chỉ chấp nhận ON_SALE hoặc DISCONTINUED.", ex.getMessage());
         }
 
@@ -81,10 +78,9 @@ class ProductServiceTest {
                     100,
                     LocalDateTime.of(2027, 12, 31, 0, 0),
                     "ON_SALE",
-                    new BigDecimal("10000.00")
-            );
+                    new BigDecimal("10000.00"));
             List<Object[]> mockRows = new ArrayList<>();
-            mockRows.add(new Object[]{ mockProduct, "Beverages" });
+            mockRows.add(new Object[] { mockProduct, "Beverages" });
 
             when(productRepository.findProducts(1, 10, "Coca", "CAT-001", "ON_SALE"))
                     .thenReturn(mockRows);
@@ -128,14 +124,12 @@ class ProductServiceTest {
         @Test
         @DisplayName("Ném ngoại lệ khi ID bị null hoặc rỗng")
         void testGetProductById_EmptyId_ThrowsIllegalArgumentException() {
-            IllegalArgumentException exNull = assertThrows(IllegalArgumentException.class, () ->
-                    productService.getProductById(null)
-            );
+            IllegalArgumentException exNull = assertThrows(IllegalArgumentException.class,
+                    () -> productService.getProductById(null));
             assertEquals("ID sản phẩm không được để trống.", exNull.getMessage());
 
-            IllegalArgumentException exEmpty = assertThrows(IllegalArgumentException.class, () ->
-                    productService.getProductById("   ")
-            );
+            IllegalArgumentException exEmpty = assertThrows(IllegalArgumentException.class,
+                    () -> productService.getProductById("   "));
             assertEquals("ID sản phẩm không được để trống.", exEmpty.getMessage());
         }
 
@@ -144,9 +138,8 @@ class ProductServiceTest {
         void testGetProductById_NotFound_ThrowsNotFoundException() {
             when(productRepository.findByIdWithCategory("PRD-999")).thenReturn(Optional.empty());
 
-            NotFoundException ex = assertThrows(NotFoundException.class, () ->
-                    productService.getProductById("PRD-999")
-            );
+            NotFoundException ex = assertThrows(NotFoundException.class,
+                    () -> productService.getProductById("PRD-999"));
             assertEquals("Không tìm thấy sản phẩm với ID tương ứng.", ex.getMessage());
         }
 
@@ -160,9 +153,8 @@ class ProductServiceTest {
                     150,
                     LocalDateTime.of(2027, 12, 31, 0, 0),
                     "ON_SALE",
-                    new BigDecimal("12000.00")
-            );
-            Object[] row = new Object[]{ mockProduct, "Confectionery" };
+                    new BigDecimal("12000.00"));
+            Object[] row = new Object[] { mockProduct, "Confectionery" };
 
             when(productRepository.findByIdWithCategory("PRD-005")).thenReturn(Optional.of(row));
 
@@ -189,15 +181,12 @@ class ProductServiceTest {
         @Test
         @DisplayName("Ném ngoại lệ khi ID sản phẩm hoặc request null")
         void testUpdateProduct_NullInputs_ThrowsException() {
-            ProductRequest.Update validRequest = new ProductRequest.Update("Tên mới", "CAT-001", BigDecimal.TEN, "ON_SALE");
+            ProductRequest.Update validRequest = new ProductRequest.Update("Tên mới", "CAT-001", BigDecimal.TEN,
+                    "ON_SALE");
 
-            assertThrows(IllegalArgumentException.class, () ->
-                    productService.updateProduct(null, validRequest)
-            );
+            assertThrows(IllegalArgumentException.class, () -> productService.updateProduct(null, validRequest));
 
-            assertThrows(IllegalArgumentException.class, () ->
-                    productService.updateProduct("PRD-001", null)
-            );
+            assertThrows(IllegalArgumentException.class, () -> productService.updateProduct("PRD-001", null));
         }
 
         @Test
@@ -206,65 +195,63 @@ class ProductServiceTest {
             ProductRequest.Update request = new ProductRequest.Update("Tên mới", "CAT-001", BigDecimal.TEN, "ON_SALE");
             when(productRepository.findById("PRD-999")).thenReturn(Optional.empty());
 
-            assertThrows(NotFoundException.class, () ->
-                    productService.updateProduct("PRD-999", request)
-            );
+            assertThrows(NotFoundException.class, () -> productService.updateProduct("PRD-999", request));
         }
 
         @Test
         @DisplayName("Ném ngoại lệ khi tên sản phẩm được truyền nhưng bị chuỗi rỗng")
         void testUpdateProduct_EmptyName_ThrowsException() {
-            Product existingProduct = new Product("PRD-001", "CAT-001", "Coca", 100, LocalDateTime.now(), "ON_SALE", BigDecimal.TEN);
+            Product existingProduct = new Product("PRD-001", "CAT-001", "Coca", 100, LocalDateTime.now(), "ON_SALE",
+                    BigDecimal.TEN);
             when(productRepository.findById("PRD-001")).thenReturn(Optional.of(existingProduct));
 
             ProductRequest.Update request = new ProductRequest.Update("   ", null, null, null);
 
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                    productService.updateProduct("PRD-001", request)
-            );
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                    () -> productService.updateProduct("PRD-001", request));
             assertEquals("Tên sản phẩm không được rỗng.", ex.getMessage());
         }
 
         @Test
         @DisplayName("Ném ngoại lệ khi đơn giá cập nhật âm")
         void testUpdateProduct_NegativeUnitPrice_ThrowsException() {
-            Product existingProduct = new Product("PRD-001", "CAT-001", "Coca", 100, LocalDateTime.now(), "ON_SALE", BigDecimal.TEN);
+            Product existingProduct = new Product("PRD-001", "CAT-001", "Coca", 100, LocalDateTime.now(), "ON_SALE",
+                    BigDecimal.TEN);
             when(productRepository.findById("PRD-001")).thenReturn(Optional.of(existingProduct));
 
             ProductRequest.Update request = new ProductRequest.Update(null, null, new BigDecimal("-1000.00"), null);
 
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                    productService.updateProduct("PRD-001", request)
-            );
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                    () -> productService.updateProduct("PRD-001", request));
             assertEquals("Đơn giá sản phẩm không được âm.", ex.getMessage());
         }
 
         @Test
         @DisplayName("Ném ngoại lệ khi trạng thái productStatus không hợp lệ")
         void testUpdateProduct_InvalidStatus_ThrowsException() {
-            Product existingProduct = new Product("PRD-001", "CAT-001", "Coca", 100, LocalDateTime.now(), "ON_SALE", BigDecimal.TEN);
+            Product existingProduct = new Product("PRD-001", "CAT-001", "Coca", 100, LocalDateTime.now(), "ON_SALE",
+                    BigDecimal.TEN);
             when(productRepository.findById("PRD-001")).thenReturn(Optional.of(existingProduct));
 
             ProductRequest.Update request = new ProductRequest.Update(null, null, null, "DELETED");
 
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                    productService.updateProduct("PRD-001", request)
-            );
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                    () -> productService.updateProduct("PRD-001", request));
             assertEquals("productStatus không hợp lệ. Chỉ chấp nhận ON_SALE hoặc DISCONTINUED.", ex.getMessage());
         }
 
         @Test
         @DisplayName("Ném NotFoundException khi cập nhật categoryId không tồn tại")
         void testUpdateProduct_CategoryNotFound_ThrowsException() {
-            Product existingProduct = new Product("PRD-001", "CAT-001", "Coca", 100, LocalDateTime.now(), "ON_SALE", BigDecimal.TEN);
+            Product existingProduct = new Product("PRD-001", "CAT-001", "Coca", 100, LocalDateTime.now(), "ON_SALE",
+                    BigDecimal.TEN);
             when(productRepository.findById("PRD-001")).thenReturn(Optional.of(existingProduct));
             when(productRepository.existsCategoryById("CAT-999")).thenReturn(false);
 
             ProductRequest.Update request = new ProductRequest.Update(null, "CAT-999", null, null);
 
-            NotFoundException ex = assertThrows(NotFoundException.class, () ->
-                    productService.updateProduct("PRD-001", request)
-            );
+            NotFoundException ex = assertThrows(NotFoundException.class,
+                    () -> productService.updateProduct("PRD-001", request));
             assertEquals("Loại sản phẩm (categoryId) không tồn tại.", ex.getMessage());
         }
 
@@ -279,22 +266,21 @@ class ProductServiceTest {
                     50,
                     LocalDateTime.of(2027, 12, 31, 0, 0),
                     "ON_SALE",
-                    new BigDecimal("9000.00")
-            );
+                    new BigDecimal("9000.00"));
 
             when(productRepository.findById("PRD-001")).thenReturn(Optional.of(existingProduct));
             when(productRepository.existsCategoryById("CAT-005")).thenReturn(true);
-            when(productRepository.updateProduct(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+            when(productRepository.updateProduct(any(Product.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
 
-            Object[] categoryRow = new Object[]{ existingProduct, "Seasoning" };
+            Object[] categoryRow = new Object[] { existingProduct, "Seasoning" };
             when(productRepository.findProductWithCategoryById("PRD-001")).thenReturn(Optional.of(categoryRow));
 
             ProductRequest.Update request = new ProductRequest.Update(
                     "Coca Cola Mới",
                     "CAT-005",
                     new BigDecimal("12000.00"),
-                    "DISCONTINUED"
-            );
+                    "DISCONTINUED");
 
             // Act
             ProductResponse.UpdateResponseDto result = productService.updateProduct("PRD-001", request);
@@ -327,9 +313,8 @@ class ProductServiceTest {
         @Test
         @DisplayName("Ném ngoại lệ khi threshold < 0")
         void testGetLowStockAlerts_NegativeThreshold_ThrowsException() {
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                    productService.getLowStockAlerts(-1, null, 1, 10)
-            );
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                    () -> productService.getLowStockAlerts(-1, null, 1, 10));
             assertEquals("Ngưỡng tồn kho (threshold) phải lớn hơn hoặc bằng 0.", ex.getMessage());
         }
 
@@ -343,10 +328,9 @@ class ProductServiceTest {
                     20,
                     LocalDateTime.of(2027, 10, 5, 0, 0),
                     "ON_SALE",
-                    new BigDecimal("120000.00")
-            );
+                    new BigDecimal("120000.00"));
             List<Object[]> mockRows = new ArrayList<>();
-            mockRows.add(new Object[]{ lowStockProd, "Meat and Seafood" });
+            mockRows.add(new Object[] { lowStockProd, "Meat and Seafood" });
 
             when(productRepository.findLowStockProducts(25, "CAT-007", 1, 10))
                     .thenReturn(mockRows);
@@ -376,9 +360,96 @@ class ProductServiceTest {
         @Test
         @DisplayName("Ném ngoại lệ khi countLowStockAlerts có threshold âm")
         void testCountLowStockAlerts_NegativeThreshold_ThrowsException() {
-            assertThrows(IllegalArgumentException.class, () ->
-                    productService.countLowStockAlerts(-1, null)
-            );
+            assertThrows(IllegalArgumentException.class, () -> productService.countLowStockAlerts(-1, null));
+        }
+    }
+
+    // =========================================================================
+    // 5. EVALUATE PRODUCT STOCK RISK & EXPIRING PRODUCTS (UDF & TVF)
+    // =========================================================================
+    @Nested
+    @DisplayName("Kiểm thử evaluateProductStockRisk() và getExpiringProducts()")
+    class RiskAndExpiringTests {
+
+        @Test
+        @DisplayName("Đánh giá rủi ro kho thành công")
+        void testEvaluateProductStockRisk_Success() {
+            when(productRepository.evaluateProductStockRisk("PRD-001"))
+                    .thenReturn("AN TOÀN BÌNH THƯỜNG");
+
+            ProductResponse.RiskAssessmentDto result = productService.evaluateProductStockRisk("PRD-001");
+
+            assertNotNull(result);
+            assertEquals("PRD-001", result.productId());
+            assertEquals("AN TOÀN BÌNH THƯỜNG", result.riskLevel());
+            verify(productRepository).evaluateProductStockRisk("PRD-001");
+        }
+
+        @Test
+        @DisplayName("Ném ngoại lệ khi evaluateProductStockRisk có ID rỗng")
+        void testEvaluateProductStockRisk_EmptyId_ThrowsException() {
+            assertThrows(IllegalArgumentException.class, () -> productService.evaluateProductStockRisk("   "));
+        }
+
+        @Test
+        @DisplayName("Lấy danh sách sản phẩm sắp hết hạn thành công")
+        void testGetExpiringProducts_Success() {
+            List<ProductResponse.ExpiringProductDto> mockList = List.of(
+                    new ProductResponse.ExpiringProductDto(
+                            "PRD-002", "Sữa tươi 1L", "Sữa", 15,
+                            new BigDecimal("30000.00"), "2026-11-01T00:00:00.000Z",
+                            13, new BigDecimal("450000.00"), "CẬN HẠN KHẨN CẤP (<= 15 NGÀY)"));
+            when(productRepository.findExpiringProducts(30)).thenReturn(mockList);
+
+            List<ProductResponse.ExpiringProductDto> result = productService.getExpiringProducts(30);
+
+            assertNotNull(result);
+            assertEquals(1, result.size());
+            assertEquals("PRD-002", result.get(0).productId());
+            assertEquals("CẬN HẠN KHẨN CẤP (<= 15 NGÀY)", result.get(0).riskStatus());
+            verify(productRepository).findExpiringProducts(30);
+        }
+    }
+
+    // =========================================================================
+    // 6. STOCK ADJUSTMENT & SAFE DEDUCTION (STORED PROCEDURES)
+    // =========================================================================
+    @Nested
+    @DisplayName("Kiểm thử adjustStock() và safeDeductStock()")
+    class StockAdjustmentAndDeductTests {
+
+        @Test
+        @DisplayName("Điều chỉnh tồn kho thành công")
+        void testAdjustStock_Success() {
+            when(productRepository.adjustProductStockWithAudit("PRD-001", 10, "Nhập bù tồn kho"))
+                    .thenReturn(110);
+
+            int newStock = productService.adjustStock("PRD-001", 10, "Nhập bù tồn kho");
+
+            assertEquals(110, newStock);
+            verify(productRepository).adjustProductStockWithAudit("PRD-001", 10, "Nhập bù tồn kho");
+        }
+
+        @Test
+        @DisplayName("Ném ngoại lệ khi số lượng điều chỉnh bằng 0")
+        void testAdjustStock_ZeroQuantity_ThrowsException() {
+            assertThrows(IllegalArgumentException.class, () -> productService.adjustStock("PRD-001", 0, "Test"));
+        }
+
+        @Test
+        @DisplayName("Trừ tồn kho an toàn thành công")
+        void testSafeDeductStock_Success() {
+            doNothing().when(productRepository).safeDeductProductStock("PRD-001", 5);
+
+            assertDoesNotThrow(() -> productService.safeDeductStock("PRD-001", 5));
+            verify(productRepository).safeDeductProductStock("PRD-001", 5);
+        }
+
+        @Test
+        @DisplayName("Ném ngoại lệ khi trừ tồn kho với số lượng <= 0")
+        void testSafeDeductStock_InvalidQuantity_ThrowsException() {
+            assertThrows(IllegalArgumentException.class, () -> productService.safeDeductStock("PRD-001", 0));
+            assertThrows(IllegalArgumentException.class, () -> productService.safeDeductStock("PRD-001", -5));
         }
     }
 }

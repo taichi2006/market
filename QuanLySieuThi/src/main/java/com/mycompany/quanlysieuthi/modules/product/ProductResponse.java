@@ -110,4 +110,11 @@ public class ProductResponse implements Serializable {
         public String getProductStatus() { return productStatus; }
         public CategoryDto getCategory() { return category; }
     }
+
+    public record ExpiringProductDto(String productId, String productName, String categoryName,
+                                     Integer stockQuantity, BigDecimal unitPrice, String expirationDate,
+                                     Integer daysUntilExpiration, BigDecimal potentialLossValue,
+                                     String riskStatus) implements Serializable {}
+
+    public record RiskAssessmentDto(String productId, String riskLevel) implements Serializable {}
 }

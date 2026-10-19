@@ -2,6 +2,7 @@ package com.mycompany.quanlysieuthi.modules.payment;
 
 import com.mycompany.quanlysieuthi.entity.Invoice;
 import com.mycompany.quanlysieuthi.entity.Payment;
+import com.mycompany.quanlysieuthi.common.exception.AppException;
 import com.mycompany.quanlysieuthi.common.exception.AppException.*;
 import com.mycompany.quanlysieuthi.modules.invoice.InvoiceRepository;
 import com.mycompany.quanlysieuthi.util.VnPayUtil;
@@ -78,9 +79,15 @@ public class PaymentService {
         LocalDateTime now = LocalDateTime.now();
 
         if ("CASH".equals(method)) {
-            Payment payment = new Payment(transactionId, invoiceId, finalAmount, "CASH", "PAID", now);
-            invoice.setStatus("PAID");
-            paymentRepository.saveCashPaymentTransaction(payment, invoice);
+            try {
+                paymentRepository.executePaymentAndLoyaltyTransaction(transactionId, invoiceId, "CASH", finalAmount);
+            } catch (AppException.BusinessException be) {
+                throw be;
+            } catch (Exception e) {
+                Payment payment = new Payment(transactionId, invoiceId, finalAmount, "CASH", "PAID", now);
+                invoice.setStatus("PAID");
+                paymentRepository.saveCashPaymentTransaction(payment, invoice);
+            }
 
             String timeStr = now.atZone(ZoneId.systemDefault()).toInstant().toString();
             return new PaymentResponse.CashResponse(transactionId, invoiceId, finalAmount, "CASH", "PAID", timeStr);
@@ -92,6 +99,7 @@ public class PaymentService {
             return new PaymentResponse.VnpayResponse(transactionId, invoiceId, finalAmount, paymentUrl);
         }
     }
+
 
     public PaymentResponse.IpnResponse handleVnPayIpn(Map<String, String[]> parameterMap) {
         if (!VnPayUtil.validateSignature(parameterMap)) {
@@ -219,21 +227,8 @@ public class PaymentService {
             finalAmount = BigDecimal.ZERO;
         }
 
-        List<PaymentResponse.TransactionDto> transactions = paymentRepository.findTransactions(
-                1, 100, null, null, null, null, null
-        );
-
-        List<PaymentResponse.TransactionDto> invoiceTxs = new ArrayList<>();
-        BigDecimal totalPaid = BigDecimal.ZERO;
-
-        for (PaymentResponse.TransactionDto tx : transactions) {
-            if (invoiceId.trim().equalsIgnoreCase(tx.getInvoiceId())) {
-                invoiceTxs.add(tx);
-                if ("PAID".equalsIgnoreCase(tx.getStatus())) {
-                    totalPaid = totalPaid.add(tx.getAmount());
-                }
-            }
-        }
+        List<PaymentResponse.TransactionDto> invoiceTxs = paymentRepository.findTransactionsByInvoiceId(invoiceId.trim());
+        BigDecimal totalPaid = paymentRepository.getTotalPaidAmountByInvoice(invoiceId.trim());
 
         BigDecimal remaining = finalAmount.subtract(totalPaid);
         if (remaining.compareTo(BigDecimal.ZERO) < 0) {
@@ -246,6 +241,25 @@ public class PaymentService {
 
         return new PaymentResponse.HistoryResponse(invoiceId, invoice.getStatus(), summary, invoiceTxs);
     }
+
+    /**
+     * Thu tiền mặt trực tiếp thông qua Stored Procedure sp_XuLyThanhToanTienMat
+     */
+    public PaymentResponse.CashResponse processCashPaymentViaProcedure(String invoiceId, BigDecimal amount) {
+        if (invoiceId == null || invoiceId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã hóa đơn không được để trống");
+        }
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Số tiền thanh toán phải lớn hơn 0");
+        }
+
+        String transactionId = IdGenerator.nextTransactionId();
+        paymentRepository.executeCashPaymentProcedure(transactionId, invoiceId.trim(), amount);
+
+        String timeStr = LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant().toString();
+        return new PaymentResponse.CashResponse(transactionId, invoiceId.trim(), amount, "CASH", "PAID", timeStr);
+    }
+
 
     private static String getParam(Map<String, String[]> map, String key) {
         if (map == null) return null;

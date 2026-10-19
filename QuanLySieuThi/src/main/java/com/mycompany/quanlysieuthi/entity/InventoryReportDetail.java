@@ -2,8 +2,11 @@ package com.mycompany.quanlysieuthi.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.io.Serializable;
@@ -71,9 +74,17 @@ public class InventoryReportDetail implements Serializable {
     @Column(name = "report_id", length = 36, nullable = false)
     private String reportId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "report_id", referencedColumnName = "report_id", insertable = false, updatable = false)
+    private InventoryReport inventoryReport;
+
     @Id
     @Column(name = "product_id", length = 36, nullable = false)
     private String productId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", referencedColumnName = "product_id", insertable = false, updatable = false)
+    private Product product;
 
     @Column(name = "system_quantity", nullable = false)
     private Integer systemQuantity;
@@ -99,6 +110,17 @@ public class InventoryReportDetail implements Serializable {
         this.reportId = reportId;
     }
 
+    public InventoryReport getInventoryReport() {
+        return inventoryReport;
+    }
+
+    public void setInventoryReport(InventoryReport inventoryReport) {
+        this.inventoryReport = inventoryReport;
+        if (inventoryReport != null) {
+            this.reportId = inventoryReport.getReportId();
+        }
+    }
+
     public String getProductId() {
         return productId;
     }
@@ -106,6 +128,18 @@ public class InventoryReportDetail implements Serializable {
     public void setProductId(String productId) {
         this.productId = productId;
     }
+
+    public Product getProduct() {
+        return product;
+    }
+
+    public void setProduct(Product product) {
+        this.product = product;
+        if (product != null) {
+            this.productId = product.getProductId();
+        }
+    }
+
 
     public Integer getSystemQuantity() {
         return systemQuantity;

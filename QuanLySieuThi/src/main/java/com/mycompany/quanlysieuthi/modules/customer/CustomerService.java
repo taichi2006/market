@@ -128,6 +128,90 @@ public class CustomerService {
         return customerRepository.findCustomerInvoices(customerId.trim(), page, limit, status, fromDateTime, toDateTime);
     }
 
+    /**
+     * Lấy danh sách tổng hợp chi tiêu và phân hạng thành viên của khách hàng (View dbo.v_tong_hop_chi_tieu_khach_hang).
+     */
+    public List<CustomerResponse.CustomerSummaryDto> getCustomerSummaries(int page, int limit, String keyword) {
+        if (page <= 0) {
+            throw new IllegalArgumentException("Tham số page phải lớn hơn 0");
+        }
+        if (limit <= 0) {
+            throw new IllegalArgumentException("Tham số limit phải lớn hơn 0");
+        }
+        return customerRepository.findCustomerSummaries(page, limit, keyword);
+    }
+
+    /**
+     * Lấy lịch sử giao dịch thanh toán chi tiết của khách hàng (TVF dbo.fn_LichSuGiaoDichKhachHang).
+     */
+    public List<CustomerResponse.CustomerTransactionDto> getCustomerTransactions(String customerId,
+                                                                                 String fromDateStr,
+                                                                                 String toDateStr) {
+        if (customerId == null || customerId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã khách hàng không được để trống");
+        }
+
+        customerRepository.findById(customerId.trim())
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy khách hàng với ID: " + customerId.trim()));
+
+        LocalDate fromDate = null;
+        LocalDate toDate = null;
+
+        if (fromDateStr != null && !fromDateStr.trim().isEmpty()) {
+            try {
+                fromDate = LocalDate.parse(fromDateStr.trim());
+            } catch (DateTimeParseException e) {
+                throw new IllegalArgumentException("fromDate không đúng định dạng YYYY-MM-DD");
+            }
+        }
+
+        if (toDateStr != null && !toDateStr.trim().isEmpty()) {
+            try {
+                toDate = LocalDate.parse(toDateStr.trim());
+            } catch (DateTimeParseException e) {
+                throw new IllegalArgumentException("toDate không đúng định dạng YYYY-MM-DD");
+            }
+        }
+
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new IllegalArgumentException("fromDate không được sau toDate");
+        }
+
+        return customerRepository.findCustomerTransactions(customerId.trim(), fromDate, toDate);
+    }
+
+    /**
+     * Đổi điểm thưởng tích lũy để trừ tiền hóa đơn (SP dbo.sp_DoiDiemThuongKhachHang).
+     */
+    public CustomerResponse.RedeemPointsResponse redeemLoyaltyPoints(CustomerRequest.RedeemPoints request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Dữ liệu đổi điểm không được để trống");
+        }
+        if (request.getCustomerId() == null || request.getCustomerId().trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã khách hàng không được để trống");
+        }
+        if (request.getInvoiceId() == null || request.getInvoiceId().trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã hóa đơn không được để trống");
+        }
+        if (request.getPoints() == null || request.getPoints() <= 0) {
+            throw new IllegalArgumentException("Số điểm quy đổi phải lớn hơn 0");
+        }
+
+        String customerId = request.getCustomerId().trim();
+        String invoiceId = request.getInvoiceId().trim();
+        int points = request.getPoints();
+
+        customerRepository.redeemLoyaltyPoints(customerId, invoiceId, points);
+
+        return new CustomerResponse.RedeemPointsResponse(
+                customerId,
+                invoiceId,
+                points,
+                java.math.BigDecimal.valueOf(Math.min(points, 100000)),
+                "Đổi điểm thưởng thành công"
+        );
+    }
+
     private CustomerResponse toCustomerResponse(Customer customer) {
         if (customer == null) {
             return null;
@@ -146,3 +230,4 @@ public class CustomerService {
         );
     }
 }
+

@@ -41,6 +41,12 @@ public class EmployeeController extends BaseController {
      */
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String pathInfo = req.getPathInfo();
+        if (pathInfo != null && (pathInfo.equals("/cashier-performance") || pathInfo.equals("/cashier-performance/"))) {
+            handle(resp, () -> employeeService.getCashierPerformance(req.getParameter("date")), "Lấy báo cáo hiệu suất thu ngân thành công");
+            return;
+        }
+
         String targetId = extractPathId(req);
 
         if (targetId != null && !targetId.equalsIgnoreCase("employee") && !targetId.equalsIgnoreCase("employees")) {

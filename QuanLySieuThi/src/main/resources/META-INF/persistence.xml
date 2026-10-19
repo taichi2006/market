@@ -34,11 +34,11 @@
 
             <!-- Driver -->
             <property name="jakarta.persistence.jdbc.driver"
-                      value="org.postgresql.Driver" />
+                      value="com.microsoft.sqlserver.jdbc.SQLServerDriver" />
 
             <!-- Hibernate -->
             <property name="hibernate.dialect"
-                      value="org.hibernate.dialect.PostgreSQLDialect" />
+                      value="org.hibernate.dialect.SQLServerDialect" />
             <property name="hibernate.show_sql" value="true" />
             <property name="hibernate.format_sql" value="true" />
             <property name="hibernate.hbm2ddl.auto" value="none" />

@@ -6,14 +6,41 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Repository handling database operations for Authentication.
+ * Đồng bộ với các tính năng CSDL trong auth_receipt_fb.sql:
+ * - Ràng buộc CHECK chk_employee_position: position IN ('STORE_OWNER', 'CASHIER', 'INVENTORY_MANAGER')
+ * - Ánh xạ người dùng & vai trò CSDL (Database Roles): role_owner, role_cashier, role_inventory, role_customer
+ * - Phân quyền bảo mật (GRANT / DENY) tại tầng DBMS.
  */
 public class AuthRepository extends BaseRepository<Employee, String> {
 
+    public static final Set<String> VALID_POSITIONS = Set.of("STORE_OWNER", "CASHIER", "INVENTORY_MANAGER");
+
     public AuthRepository() {
         super(Employee.class);
+    }
+
+    /**
+     * Ánh xạ chức vụ nhân sự sang Database Role tương ứng trong SQL Server.
+     */
+    public String getDatabaseRoleForPosition(String position) {
+        if (position == null) return null;
+        return switch (position.trim().toUpperCase()) {
+            case "STORE_OWNER" -> "role_owner";
+            case "CASHIER" -> "role_cashier";
+            case "INVENTORY_MANAGER" -> "role_inventory";
+            default -> null;
+        };
+    }
+
+    /**
+     * Kiểm tra tính hợp lệ của chức vụ nhân viên dựa trên ràng buộc chk_employee_position.
+     */
+    public boolean isValidPosition(String position) {
+        return position != null && VALID_POSITIONS.contains(position.trim().toUpperCase());
     }
 
     public Optional<Employee> findByUsername(String username) {
@@ -69,3 +96,4 @@ public class AuthRepository extends BaseRepository<Employee, String> {
         });
     }
 }
+

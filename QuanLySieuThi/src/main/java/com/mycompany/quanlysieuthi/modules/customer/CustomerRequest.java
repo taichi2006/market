@@ -14,4 +14,11 @@ public class CustomerRequest implements Serializable {
         public String getPhoneNumber() { return phoneNumber; }
         public String getEmail() { return email; }
     }
+
+    public record RedeemPoints(String customerId, String invoiceId, Integer points) implements Serializable {
+        public String getCustomerId() { return customerId; }
+        public String getInvoiceId() { return invoiceId; }
+        public Integer getPoints() { return points; }
+    }
 }
+

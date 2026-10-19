@@ -47,14 +47,9 @@ public class CategoryService {
     }
 
     public Map<String, Object> getCategories(int page, int limit, String keyword) {
-        List<ProductCategory> list = categoryRepository.findCategories(page, limit, keyword);
+        // Sử dụng trực tiếp View vw_ProductCategoryInventorySummary để loại bỏ N+1 query
+        List<CategoryResponse> data = categoryRepository.findCategorySummaries(page, limit, keyword);
         long total = categoryRepository.countCategories(keyword);
-
-        List<CategoryResponse> data = new ArrayList<>();
-        for (ProductCategory c : list) {
-            long pCount = categoryRepository.countProductsByCategoryId(c.getCategoryId());
-            data.add(new CategoryResponse(c.getCategoryId(), c.getCategoryName(), pCount));
-        }
 
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("page", page);
@@ -69,24 +64,16 @@ public class CategoryService {
     }
 
     public List<CategoryResponse> getAllCategories() {
-        List<ProductCategory> list = categoryRepository.findAll();
-        List<CategoryResponse> data = new ArrayList<>();
-        for (ProductCategory c : list) {
-            long pCount = categoryRepository.countProductsByCategoryId(c.getCategoryId());
-            data.add(new CategoryResponse(c.getCategoryId(), c.getCategoryName(), pCount));
-        }
-        return data;
+        // Tối ưu hóa truy vấn thông qua View vw_ProductCategoryInventorySummary
+        return categoryRepository.findAllCategorySummaries();
     }
 
     public CategoryResponse getCategoryById(String categoryId) {
         if (categoryId == null || categoryId.trim().isEmpty()) {
             throw new IllegalArgumentException("Mã loại sản phẩm không hợp lệ");
         }
-        ProductCategory category = categoryRepository.findById(categoryId.trim())
+        return categoryRepository.findCategorySummaryById(categoryId.trim())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy loại sản phẩm với mã: " + categoryId));
-
-        long pCount = categoryRepository.countProductsByCategoryId(category.getCategoryId());
-        return new CategoryResponse(category.getCategoryId(), category.getCategoryName(), pCount);
     }
 
     public CategoryResponse updateCategory(String categoryId, CategoryRequest request) {
@@ -107,23 +94,31 @@ public class CategoryService {
 
         existing.setCategoryName(newName);
         ProductCategory updated = categoryRepository.update(existing);
-        long pCount = categoryRepository.countProductsByCategoryId(updated.getCategoryId());
-        return new CategoryResponse(updated.getCategoryId(), updated.getCategoryName(), pCount);
+        return getCategoryById(updated.getCategoryId());
     }
 
     public void deleteCategory(String categoryId) {
         if (categoryId == null || categoryId.trim().isEmpty()) {
             throw new IllegalArgumentException("Mã loại sản phẩm không hợp lệ");
         }
-        ProductCategory existing = categoryRepository.findById(categoryId.trim())
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy loại sản phẩm với mã: " + categoryId));
+        // Nghiệp vụ kiểm tra danh mục có sản phẩm đang kinh doanh hoặc còn tồn kho
+        // đã được chuyển giao hoàn toàn cho Trigger trg_PreventDeleteCategoryWithProducts trong database.
+        // Trigger sẽ tự động gỡ liên kết category_id = NULL cho các sản phẩm đã ngừng kinh doanh/hết hàng
+        // hoặc ROLLBACK và báo lỗi nếu sản phẩm vẫn đang kinh doanh/còn tồn kho.
+        categoryRepository.deleteCategoryWithTrigger(categoryId.trim());
+    }
 
-        long pCount = categoryRepository.countProductsByCategoryId(existing.getCategoryId());
-        if (pCount > 0) {
-            throw new ConflictException("Không thể xóa loại sản phẩm '" + existing.getCategoryName() +
-                    "' vì đang có " + pCount + " sản phẩm thuộc loại này.");
+    public void mergeCategories(String sourceCategoryId, String targetCategoryId) {
+        if (sourceCategoryId == null || sourceCategoryId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã danh mục nguồn không được để trống");
         }
-
-        categoryRepository.delete(existing);
+        if (targetCategoryId == null || targetCategoryId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Mã danh mục đích không được để trống");
+        }
+        if (sourceCategoryId.trim().equalsIgnoreCase(targetCategoryId.trim())) {
+            throw new ConflictException("Danh mục nguồn và danh mục đích không được trùng nhau!");
+        }
+        // Gọi Stored Procedure sp_MergeProductCategories để chuyển giao dịch chuyển toàn bộ sản phẩm và xóa danh mục nguồn trong CSDL
+        categoryRepository.mergeCategories(sourceCategoryId.trim(), targetCategoryId.trim());
     }
 }

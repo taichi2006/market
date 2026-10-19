@@ -1,281 +1,186 @@
 package com.mycompany.quanlysieuthi.modules.purchasereceipt;
 
 import com.mycompany.quanlysieuthi.common.base.BaseRepository;
-import com.mycompany.quanlysieuthi.config.JpaUtil;
 import com.mycompany.quanlysieuthi.entity.Product;
 import com.mycompany.quanlysieuthi.entity.ProductCategory;
 import com.mycompany.quanlysieuthi.entity.PurchaseReceipt;
 import com.mycompany.quanlysieuthi.entity.PurchaseReceiptDetail;
 import com.mycompany.quanlysieuthi.entity.Voucher;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityTransaction;
-import jakarta.persistence.TypedQuery;
+import jakarta.persistence.Query;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.function.Function;
 
 /**
- * Repository handling database operations for Purchase Receipt module.
+ * Repository xử lý dữ liệu cho module Phiếu nhập hàng (Purchase Receipt),
+ * tận dụng View và Trigger CSDL để tối ưu hóa truy vấn và cập nhật kho.
  */
 public class PurchaseReceiptRepository extends BaseRepository<PurchaseReceipt, String> {
+
+    private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
 
     public PurchaseReceiptRepository() {
         super(PurchaseReceipt.class);
     }
 
     public boolean existsCategory(String categoryId) {
-        if (categoryId == null || categoryId.trim().isEmpty()) {
+        if (categoryId == null || categoryId.isBlank())
             return false;
-        }
-        EntityManager em = JpaUtil.getEntityManager();
-        try {
-            ProductCategory category = em.find(ProductCategory.class, categoryId.trim());
-            return category != null;
-        } finally {
-            em.close();
-        }
+        return query(em -> em.find(ProductCategory.class, categoryId.trim()) != null);
     }
 
     public String findFirstCategoryId() {
-        EntityManager em = JpaUtil.getEntityManager();
-        try {
-            List<String> ids = em.createQuery("SELECT c.categoryId FROM ProductCategory c ORDER BY c.categoryId ASC", String.class)
-                    .setMaxResults(1)
-                    .getResultList();
-            return ids.isEmpty() ? null : ids.get(0);
-        } finally {
-            em.close();
-        }
+        return query(em -> em
+                .createQuery("SELECT c.categoryId FROM ProductCategory c ORDER BY c.categoryId ASC", String.class)
+                .setMaxResults(1).getResultStream().findFirst().orElse(null));
     }
 
     public Optional<Product> findProductById(String productId) {
-        if (productId == null || productId.trim().isEmpty()) {
+        if (productId == null || productId.isBlank())
             return Optional.empty();
-        }
-        EntityManager em = JpaUtil.getEntityManager();
-        try {
-            return Optional.ofNullable(em.find(Product.class, productId.trim()));
-        } finally {
-            em.close();
-        }
+        return query(em -> Optional.ofNullable(em.find(Product.class, productId.trim())));
     }
 
     public void savePurchaseReceiptTransaction(Voucher voucher,
-                                               PurchaseReceipt purchaseReceipt,
-                                               List<Product> products,
-                                               List<PurchaseReceiptDetail> details) {
-        EntityManager em = JpaUtil.getEntityManager();
-        EntityTransaction tx = em.getTransaction();
+            PurchaseReceipt purchaseReceipt,
+            List<Product> products,
+            List<PurchaseReceiptDetail> details) {
         try {
-            tx.begin();
-
-            em.persist(voucher);
-            em.persist(purchaseReceipt);
-
-            for (Product product : products) {
-                em.persist(product);
-            }
-
-            for (PurchaseReceiptDetail detail : details) {
-                em.persist(detail);
-            }
-
-            tx.commit();
+            executeInTransaction(em -> {
+                em.persist(voucher);
+                em.persist(purchaseReceipt);
+                products.forEach(em::persist);
+                details.forEach(em::persist);
+            });
         } catch (Exception e) {
-            if (tx.isActive()) {
-                tx.rollback();
-            }
             Throwable root = e;
-            while (root.getCause() != null) {
+            while (root.getCause() != null)
                 root = root.getCause();
-            }
             throw new RuntimeException("Lỗi giao dịch khi lưu phiếu nhập hàng: " + root.getMessage(), e);
-        } finally {
-            em.close();
         }
     }
 
+    @SuppressWarnings("unchecked")
     public List<PurchaseReceiptResponse.ListItemDto> findPurchaseReceipts(int page, int limit,
-                                                                         String supplierName,
-                                                                         String employeeId,
-                                                                         LocalDateTime fromDateTime,
-                                                                         LocalDateTime toDateTime) {
-        EntityManager em = JpaUtil.getEntityManager();
-        try {
-            StringBuilder jpql = new StringBuilder(
-                    "SELECT pr.voucherId, pr.supplierName, v.totalAmount, v.createdAt, " +
-                    "e.employeeId, e.fullName, e.username " +
-                    "FROM PurchaseReceipt pr " +
-                    "JOIN Voucher v ON pr.voucherId = v.voucherId " +
-                    "LEFT JOIN Employee e ON v.employeeId = e.employeeId " +
-                    "WHERE 1=1 ");
+            String supplierName,
+            String employeeId,
+            LocalDateTime fromDateTime,
+            LocalDateTime toDateTime) {
+        return query(em -> {
+            StringBuilder sql = new StringBuilder(
+                    "SELECT voucher_id, supplier_name, total_amount, created_at, "
+                            + "employee_id, employee_name, employee_username "
+                            + "FROM v_purchase_receipt_summary WHERE 1=1 ");
+            Map<String, Object> params = new HashMap<>();
 
-            if (supplierName != null && !supplierName.trim().isEmpty()) {
-                jpql.append("AND LOWER(pr.supplierName) LIKE LOWER(:supplierName) ");
+            if (supplierName != null && !supplierName.isBlank()) {
+                sql.append("AND LOWER(supplier_name) LIKE LOWER(:supplierName) ");
+                params.put("supplierName", "%" + supplierName.trim() + "%");
             }
-            if (employeeId != null && !employeeId.trim().isEmpty()) {
-                jpql.append("AND v.employeeId = :employeeId ");
+            if (employeeId != null && !employeeId.isBlank()) {
+                sql.append("AND employee_id = :employeeId ");
+                params.put("employeeId", employeeId.trim());
             }
             if (fromDateTime != null) {
-                jpql.append("AND v.createdAt >= :fromDateTime ");
+                sql.append("AND created_at >= :fromDateTime ");
+                params.put("fromDateTime", fromDateTime);
             }
             if (toDateTime != null) {
-                jpql.append("AND v.createdAt <= :toDateTime ");
+                sql.append("AND created_at <= :toDateTime ");
+                params.put("toDateTime", toDateTime);
             }
 
-            jpql.append("ORDER BY v.createdAt DESC");
-
-            TypedQuery<Object[]> query = em.createQuery(jpql.toString(), Object[].class);
-
-            if (supplierName != null && !supplierName.trim().isEmpty()) {
-                query.setParameter("supplierName", "%" + supplierName.trim() + "%");
-            }
-            if (employeeId != null && !employeeId.trim().isEmpty()) {
-                query.setParameter("employeeId", employeeId.trim());
-            }
-            if (fromDateTime != null) {
-                query.setParameter("fromDateTime", fromDateTime);
-            }
-            if (toDateTime != null) {
-                query.setParameter("toDateTime", toDateTime);
-            }
-
-            int offset = (page - 1) * limit;
-            query.setFirstResult(offset);
+            sql.append("ORDER BY created_at DESC");
+            Query query = em.createNativeQuery(sql.toString());
+            params.forEach(query::setParameter);
+            query.setFirstResult((page - 1) * limit);
             query.setMaxResults(limit);
 
-            List<Object[]> rawList = query.getResultList();
-            List<PurchaseReceiptResponse.ListItemDto> result = new ArrayList<>();
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-
-            for (Object[] row : rawList) {
-                String voucherId = (String) row[0];
-                String sName = (String) row[1];
-                BigDecimal totalAmount = (BigDecimal) row[2];
-                LocalDateTime createdAt = (LocalDateTime) row[3];
-                String empId = (String) row[4];
-                String empFullName = (String) row[5];
-                String empUsername = (String) row[6];
-
-                String formattedDate = createdAt != null
-                        ? createdAt.atOffset(ZoneOffset.UTC).format(formatter)
+            List<Object[]> rows = query.getResultList();
+            List<PurchaseReceiptResponse.ListItemDto> result = new ArrayList<>(rows.size());
+            for (Object[] r : rows) {
+                BigDecimal total = r[2] != null ? new BigDecimal(r[2].toString()) : BigDecimal.ZERO;
+                PurchaseReceiptResponse.EmployeeDto emp = r[4] != null
+                        ? new PurchaseReceiptResponse.EmployeeDto((String) r[4], (String) r[5], (String) r[6])
                         : null;
-
-                PurchaseReceiptResponse.EmployeeDto empDto = null;
-                if (empId != null) {
-                    empDto = new PurchaseReceiptResponse.EmployeeDto(empId, empFullName, empUsername);
-                }
-
-                result.add(new PurchaseReceiptResponse.ListItemDto(
-                        voucherId,
-                        sName,
-                        totalAmount,
-                        formattedDate,
-                        empDto));
+                result.add(new PurchaseReceiptResponse.ListItemDto((String) r[0], (String) r[1], total, formatIso(r[3]),
+                        emp));
             }
-
             return result;
-        } finally {
-            em.close();
-        }
+        });
     }
 
     public Optional<PurchaseReceiptResponse.DetailResponse> findPurchaseReceiptDetailById(String voucherId) {
-        if (voucherId == null || voucherId.trim().isEmpty()) {
+        if (voucherId == null || voucherId.isBlank())
             return Optional.empty();
-        }
 
-        EntityManager em = JpaUtil.getEntityManager();
-        try {
-            String headerJpql = "SELECT pr.voucherId, pr.supplierName, v.totalAmount, v.createdAt, " +
-                    "e.employeeId, e.fullName, e.username " +
-                    "FROM PurchaseReceipt pr " +
-                    "JOIN Voucher v ON pr.voucherId = v.voucherId " +
-                    "LEFT JOIN Employee e ON v.employeeId = e.employeeId " +
-                    "WHERE pr.voucherId = :voucherId";
-
-            List<Object[]> headerList = em.createQuery(headerJpql, Object[].class)
+        return query(em -> {
+            List<Object[]> headerList = em.createQuery(
+                    "SELECT pr.voucherId, pr.supplierName, v.totalAmount, v.createdAt, "
+                            + "e.employeeId, e.fullName, e.username "
+                            + "FROM PurchaseReceipt pr JOIN Voucher v ON pr.voucherId = v.voucherId "
+                            + "LEFT JOIN Employee e ON v.employeeId = e.employeeId WHERE pr.voucherId = :voucherId",
+                    Object[].class)
                     .setParameter("voucherId", voucherId.trim())
                     .getResultList();
-
-            if (headerList.isEmpty()) {
+            if (headerList.isEmpty())
                 return Optional.empty();
-            }
 
-            Object[] headerRow = headerList.get(0);
-            String vId = (String) headerRow[0];
-            String sName = (String) headerRow[1];
-            BigDecimal totalAmount = (BigDecimal) headerRow[2];
-            LocalDateTime createdAt = (LocalDateTime) headerRow[3];
-            String empId = (String) headerRow[4];
-            String empFullName = (String) headerRow[5];
-            String empUsername = (String) headerRow[6];
-
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-            String formattedDate = createdAt != null
-                    ? createdAt.atOffset(ZoneOffset.UTC).format(formatter)
+            Object[] h = headerList.get(0);
+            BigDecimal totalAmount = (BigDecimal) h[2];
+            PurchaseReceiptResponse.EmployeeDto emp = h[4] != null
+                    ? new PurchaseReceiptResponse.EmployeeDto((String) h[4], (String) h[5], (String) h[6])
                     : null;
 
-            PurchaseReceiptResponse.EmployeeDto empDto = null;
-            if (empId != null) {
-                empDto = new PurchaseReceiptResponse.EmployeeDto(empId, empFullName, empUsername);
-            }
-
-            String itemsJpql = "SELECT d.purchaseDetailId, p.productId, p.productName, c.categoryName, " +
-                    "d.purchasedQuantity, d.purchasePrice, d.expirationDate " +
-                    "FROM PurchaseReceiptDetail d " +
-                    "JOIN Product p ON d.productId = p.productId " +
-                    "LEFT JOIN ProductCategory c ON p.categoryId = c.categoryId " +
-                    "WHERE d.voucherId = :voucherId " +
-                    "ORDER BY d.purchaseDetailId ASC";
-
-            List<Object[]> itemRows = em.createQuery(itemsJpql, Object[].class)
+            List<Object[]> itemRows = em.createQuery(
+                    "SELECT d.purchaseDetailId, p.productId, p.productName, c.categoryName, "
+                            + "d.purchasedQuantity, d.purchasePrice, d.expirationDate "
+                            + "FROM PurchaseReceiptDetail d JOIN Product p ON d.productId = p.productId "
+                            + "LEFT JOIN ProductCategory c ON p.categoryId = c.categoryId "
+                            + "WHERE d.voucherId = :voucherId ORDER BY d.purchaseDetailId ASC",
+                    Object[].class)
                     .setParameter("voucherId", voucherId.trim())
                     .getResultList();
 
-            List<PurchaseReceiptResponse.ItemDetailDto> items = new ArrayList<>();
-            for (Object[] itemRow : itemRows) {
-                String detailId = (String) itemRow[0];
-                String prodId = (String) itemRow[1];
-                String prodName = (String) itemRow[2];
-                String catName = (String) itemRow[3];
-                Integer qty = (Integer) itemRow[4];
-                BigDecimal price = (BigDecimal) itemRow[5];
-                LocalDateTime expDate = (LocalDateTime) itemRow[6];
-
-                BigDecimal lineTotal = (qty != null && price != null)
-                        ? price.multiply(BigDecimal.valueOf(qty))
+            List<PurchaseReceiptResponse.ItemDetailDto> items = new ArrayList<>(itemRows.size());
+            for (Object[] ir : itemRows) {
+                Integer qty = (Integer) ir[4];
+                BigDecimal price = (BigDecimal) ir[5];
+                BigDecimal lineTotal = (qty != null && price != null) ? price.multiply(BigDecimal.valueOf(qty))
                         : BigDecimal.ZERO;
-
-                String formattedExpDate = expDate != null
-                        ? expDate.atOffset(ZoneOffset.UTC).format(formatter)
-                        : null;
-
                 items.add(new PurchaseReceiptResponse.ItemDetailDto(
-                        detailId,
-                        prodId,
-                        prodName,
-                        catName,
-                        qty,
-                        price,
-                        lineTotal,
-                        formattedExpDate));
+                        (String) ir[0], (String) ir[1], (String) ir[2], (String) ir[3],
+                        qty, price, lineTotal, formatIso(ir[6])));
             }
 
             return Optional.of(new PurchaseReceiptResponse.DetailResponse(
-                    vId,
-                    sName,
-                    totalAmount,
-                    formattedDate,
-                    empDto,
-                    items));
+                    (String) h[0], (String) h[1], totalAmount, formatIso(h[3]), emp, items));
+        });
+    }
+
+    private <R> R query(Function<EntityManager, R> action) {
+        EntityManager em = getEntityManager();
+        try {
+            return action.apply(em);
         } finally {
-            em.close();
+            if (em.isOpen())
+                em.close();
         }
+    }
+
+    private static String formatIso(Object val) {
+        if (val == null)
+            return null;
+        if (val instanceof Timestamp ts)
+            return ts.toLocalDateTime().atOffset(ZoneOffset.UTC).format(ISO_FORMATTER);
+        if (val instanceof LocalDateTime ldt)
+            return ldt.atOffset(ZoneOffset.UTC).format(ISO_FORMATTER);
+        return val.toString();
     }
 }

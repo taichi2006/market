@@ -36,10 +36,13 @@ public class PaymentController extends BaseController {
 
         if ("/process".equalsIgnoreCase(pathInfo)) {
             handleProcessPayment(req, resp);
+        } else if ("/cash-direct".equalsIgnoreCase(pathInfo)) {
+            handleCashDirect(req, resp);
         } else {
             sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Endpoint not found: " + pathInfo);
         }
     }
+
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -75,6 +78,16 @@ public class PaymentController extends BaseController {
             String clientIp = getClientIp(req);
             return paymentService.processPayment(requestDto, clientIp);
         }, "Khởi tạo thanh toán thành công");
+    }
+
+    private void handleCashDirect(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        handle(resp, () -> {
+            PaymentRequest.CashDirect requestDto = parseBody(req, PaymentRequest.CashDirect.class);
+            if (requestDto == null) {
+                throw new IllegalArgumentException("Request body không được để trống");
+            }
+            return paymentService.processCashPaymentViaProcedure(requestDto.getInvoiceId(), requestDto.getAmount());
+        }, "Thanh toán tiền mặt thành công");
     }
 
     private void handleVnPayIpn(HttpServletRequest req, HttpServletResponse resp) throws IOException {

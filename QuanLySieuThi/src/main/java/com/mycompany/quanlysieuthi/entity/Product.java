@@ -2,7 +2,10 @@ package com.mycompany.quanlysieuthi.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.io.Serializable;
@@ -25,6 +28,10 @@ public class Product implements Serializable {
 
     @Column(name = "category_id", length = 36, nullable = false)
     private String categoryId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", referencedColumnName = "category_id", insertable = false, updatable = false)
+    private ProductCategory category;
 
     @Column(name = "product_name", length = 100, nullable = false)
     private String productName;
@@ -70,6 +77,18 @@ public class Product implements Serializable {
     public void setCategoryId(String categoryId) {
         this.categoryId = categoryId;
     }
+
+    public ProductCategory getCategory() {
+        return category;
+    }
+
+    public void setCategory(ProductCategory category) {
+        this.category = category;
+        if (category != null) {
+            this.categoryId = category.getCategoryId();
+        }
+    }
+
 
     public String getProductName() {
         return productName;

@@ -238,31 +238,28 @@ public class RevenueRepository {
     public List<Object[]> findStockDiscrepancyRowsForExcel(String receiptId, LocalDateTime from, LocalDateTime to) {
         EntityManager em = JpaUtil.getEntityManager();
         try {
-            StringBuilder jpql = new StringBuilder(
-                    "SELECT ir.reportId, ir.reportDate, e.fullName, " +
-                    "p.productId, p.productName, pc.categoryName, " +
-                    "ird.systemQuantity, ird.actualQuantity, (ird.actualQuantity - ird.systemQuantity), " +
-                    "COALESCE(p.unitPrice, 0) " +
-                    "FROM InventoryReport ir " +
-                    "JOIN InventoryReportDetail ird ON ir.reportId = ird.reportId " +
-                    "LEFT JOIN Employee e ON ir.employeeId = e.employeeId " +
-                    "LEFT JOIN Product p ON ird.productId = p.productId " +
-                    "LEFT JOIN ProductCategory pc ON p.categoryId = pc.categoryId " +
+            // Thay thế truy vấn tự join và tính chênh lệch thủ công bằng View dbo.vw_InventoryAuditDiscrepancy
+            StringBuilder sql = new StringBuilder(
+                    "SELECT report_id, report_date, auditor_name, " +
+                    "product_id, product_name, category_name, " +
+                    "system_quantity, actual_quantity, discrepancy_quantity, " +
+                    "COALESCE(unit_price, 0) " +
+                    "FROM dbo.vw_InventoryAuditDiscrepancy " +
                     "WHERE 1=1 ");
 
             if (receiptId != null && !receiptId.trim().isEmpty()) {
-                jpql.append("AND ir.reportId = :receiptId ");
+                sql.append("AND report_id = :receiptId ");
             } else {
                 if (from != null) {
-                    jpql.append("AND ir.reportDate >= :from ");
+                    sql.append("AND report_date >= :from ");
                 }
                 if (to != null) {
-                    jpql.append("AND ir.reportDate <= :to ");
+                    sql.append("AND report_date <= :to ");
                 }
             }
-            jpql.append("ORDER BY ir.reportDate DESC, ir.reportId ASC");
+            sql.append("ORDER BY report_date DESC, report_id ASC");
 
-            TypedQuery<Object[]> q = em.createQuery(jpql.toString(), Object[].class);
+            Query q = em.createNativeQuery(sql.toString());
             if (receiptId != null && !receiptId.trim().isEmpty()) {
                 q.setParameter("receiptId", receiptId.trim());
             } else {
@@ -273,7 +270,29 @@ public class RevenueRepository {
                     q.setParameter("to", to);
                 }
             }
-            return q.getResultList();
+            List<?> rawList = q.getResultList();
+            List<Object[]> result = new ArrayList<>();
+            for (Object obj : rawList) {
+                Object[] r = (Object[]) obj;
+                String rId = (String) r[0];
+                LocalDateTime rDate = null;
+                if (r[1] instanceof LocalDateTime) {
+                    rDate = (LocalDateTime) r[1];
+                } else if (r[1] instanceof java.sql.Timestamp) {
+                    rDate = ((java.sql.Timestamp) r[1]).toLocalDateTime();
+                }
+                String emp = (String) r[2];
+                String pId = (String) r[3];
+                String pName = (String) r[4];
+                String catName = (String) r[5];
+                Integer sysQty = r[6] != null ? ((Number) r[6]).intValue() : 0;
+                Integer actQty = r[7] != null ? ((Number) r[7]).intValue() : 0;
+                Integer diff = r[8] != null ? ((Number) r[8]).intValue() : 0;
+                BigDecimal price = r[9] != null ? new BigDecimal(r[9].toString()) : BigDecimal.ZERO;
+
+                result.add(new Object[]{rId, rDate, emp, pId, pName, catName, sysQty, actQty, diff, price});
+            }
+            return result;
         } finally {
             em.close();
         }

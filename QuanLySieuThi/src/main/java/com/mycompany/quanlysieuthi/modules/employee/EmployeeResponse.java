@@ -93,4 +93,17 @@ public class EmployeeResponse implements Serializable {
      * Result returned after soft deleting an employee.
      */
     public record DeleteResult(String employeeId, Boolean status) implements Serializable {}
+
+    /**
+     * DTO đại diện báo cáo hiệu suất thu ngân theo ngày từ View v_hieu_suat_thu_ngan_theo_ngay.
+     */
+    public record CashierPerformanceDto(
+            String employeeId,
+            String cashierName,
+            String shiftDate,
+            long totalTransactions,
+            java.math.BigDecimal totalCollected,
+            java.math.BigDecimal cashAmount,
+            java.math.BigDecimal onlineAmount
+    ) implements Serializable {}
 }

@@ -139,12 +139,77 @@ public class EmployeeRepository extends BaseRepository<Employee, String> {
         if (employeeId == null || employeeId.trim().isEmpty()) {
             return false;
         }
-        return executeInTransactionWithResult(em -> {
-            int updated = em.createQuery(
-                    "UPDATE Employee e SET e.status = false WHERE UPPER(e.employeeId) = UPPER(:id)"
+        EntityManager em = getEntityManager();
+        jakarta.persistence.EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            // Cập nhật trạng thái status = false (Trigger trg_BaoVeStoreOwnerDuyNhat sẽ tự động chặn nếu là STORE_OWNER active duy nhất)
+            int updated = em.createNativeQuery(
+                    "UPDATE dbo.employee SET status = 0 WHERE UPPER(employee_id) = UPPER(:id)"
             ).setParameter("id", employeeId.trim()).executeUpdate();
+            tx.commit();
             return updated > 0;
-        });
+        } catch (Exception e) {
+            if (tx.isActive()) {
+                tx.rollback();
+            }
+            Throwable root = e;
+            while (root.getCause() != null) {
+                root = root.getCause();
+            }
+            String msg = root.getMessage();
+            if (msg != null && msg.contains("Không thể xóa hoặc vô hiệu hóa Quản trị viên")) {
+                throw new com.mycompany.quanlysieuthi.common.exception.AppException.BusinessException(
+                        "Không thể xóa hoặc vô hiệu hóa Quản trị viên (STORE_OWNER) duy nhất trong hệ thống!");
+            }
+            throw new RuntimeException("Lỗi vô hiệu hóa nhân viên: " + msg, e);
+        } finally {
+            if (em.isOpen()) {
+                em.close();
+            }
+        }
+    }
+
+    /**
+     * Báo cáo hiệu suất thu ngân theo ngày từ View dbo.v_hieu_suat_thu_ngan_theo_ngay.
+     */
+    public List<EmployeeResponse.CashierPerformanceDto> findCashierShiftPerformance(java.time.LocalDate shiftDate) {
+        EntityManager em = getEntityManager();
+        try {
+            StringBuilder sql = new StringBuilder(
+                    "SELECT employee_id, cashier_name, shift_date, total_transactions, total_collected, cash_amount, online_amount " +
+                    "FROM dbo.v_hieu_suat_thu_ngan_theo_ngay WHERE 1=1 "
+            );
+            if (shiftDate != null) {
+                sql.append("AND shift_date = :shiftDate ");
+            }
+            sql.append("ORDER BY shift_date DESC, total_collected DESC");
+
+            jakarta.persistence.Query q = em.createNativeQuery(sql.toString());
+            if (shiftDate != null) {
+                q.setParameter("shiftDate", java.sql.Date.valueOf(shiftDate));
+            }
+
+            List<?> rows = q.getResultList();
+            List<EmployeeResponse.CashierPerformanceDto> list = new java.util.ArrayList<>();
+            for (Object obj : rows) {
+                Object[] r = (Object[]) obj;
+                String empId = (String) r[0];
+                String name = (String) r[1];
+                String dateStr = r[2] != null ? r[2].toString() : "";
+                long txCount = r[3] != null ? ((Number) r[3]).longValue() : 0L;
+                java.math.BigDecimal total = r[4] != null ? new java.math.BigDecimal(r[4].toString()) : java.math.BigDecimal.ZERO;
+                java.math.BigDecimal cash = r[5] != null ? new java.math.BigDecimal(r[5].toString()) : java.math.BigDecimal.ZERO;
+                java.math.BigDecimal online = r[6] != null ? new java.math.BigDecimal(r[6].toString()) : java.math.BigDecimal.ZERO;
+
+                list.add(new EmployeeResponse.CashierPerformanceDto(empId, name, dateStr, txCount, total, cash, online));
+            }
+            return list;
+        } finally {
+            if (em.isOpen()) {
+                em.close();
+            }
+        }
     }
 
     public record PageResult<T>(List<T> items, long totalElements) {
